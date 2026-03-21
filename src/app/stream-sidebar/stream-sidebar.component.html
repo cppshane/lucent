@@ -1,0 +1,47 @@
+<aside
+  #panelRef
+  class="panel"
+  [class.panel--open]="panelOpen"
+  role="dialog"
+  aria-label="Stream details"
+  [style.width.px]="panelWidthPx"
+>
+  <div class="resize-edge" aria-hidden="true" (mousedown)="onResizeMouseDown($event)"></div>
+  <div class="panel-head">
+    <div class="eyebrow"><span class="live-dot" aria-hidden="true"></span>live stream</div>
+    <button type="button" class="close" (click)="onCloseClick()" aria-label="Close">
+      <span aria-hidden="true">×</span>
+    </button>
+  </div>
+
+  <h2 class="title">{{ stream.title }}</h2>
+  <div class="meta-row">
+    <p class="meta">{{ stream.viewerCount | number }} watching</p>
+    <a
+      class="external"
+      [class.external--youtube]="isYoutubeStream"
+      [class.external--kick]="isKickStream"
+      [href]="stream.link"
+      target="_blank"
+      rel="noopener noreferrer"
+      >{{ openOnPlatformLabel }}</a
+    >
+  </div>
+
+  <ng-container *ngIf="safePlayerUrl; else noPlayer">
+    <div class="player-wrap">
+      <iframe
+        [src]="safePlayerUrl"
+        [title]="embedPlayerTitle"
+        allowfullscreen
+        allow="autoplay; fullscreen; picture-in-picture"
+      ></iframe>
+    </div>
+  </ng-container>
+  <ng-template #noPlayer>
+    <p class="no-embed">Playback unavailable for this link.</p>
+  </ng-template>
+
+  <div class="section-title">channel description</div>
+  <p class="desc">{{ stream.description }}</p>
+</aside>
