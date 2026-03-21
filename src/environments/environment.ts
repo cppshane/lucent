@@ -1,5 +1,8 @@
 export const environment = {
   production: false,
-  /** LucentApi streams JSON (`ng serve` uses proxy to localhost:5264). */
+  /**
+   * `/api/streams` — dev: proxied to LucentApi (`proxy.conf.json`); prod: same path on lucent.earth.
+   * `production` flag comes from `environment.production.ts` in prod builds.
+   */
   streamsUrl: '/api/streams',
 };
