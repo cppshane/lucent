@@ -5,11 +5,16 @@
   height: 100%;
 }
 
-.site-title {
+.site-brand {
   position: absolute;
   top: 1.25rem;
   left: 1.25rem;
   z-index: 20;
+  width: max-content;
+  pointer-events: none;
+}
+
+.site-title {
   margin: 0;
   padding: 0;
   width: max-content;
@@ -21,4 +26,29 @@
   letter-spacing: 0.02em;
   text-transform: lowercase;
   pointer-events: none;
+}
+
+.site-credits {
+  margin: 0.2rem 0 0;
+  padding: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(0.62rem, 1.35vw, 0.72rem);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  pointer-events: none;
+}
+
+.site-credits-link {
+  pointer-events: auto;
+  color: rgba(232, 234, 237, 0.48);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.site-credits-link:hover {
+  color: rgba(232, 234, 237, 0.88);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
