@@ -8,10 +8,12 @@ export const environment = {
   /** Dev: `proxy.conf.json` forwards to de1.api.radio-browser.info. */
   radioBrowserBaseUrl: '/radio-browser',
   /**
-   * Max geo-located stations for globe markers (Radio Browser search `limit`).
+   * Target count of geo-located stations for globe markers. Radio Browser returns at most 1000
+   * per HTTP call; the client pages with `?offset=` only when this value is **greater than 1000**.
+   * (At 500 you will see a single `offset=0` request in DevTools — that is expected.)
    * Mirror: `Lucent:RadioStationSearchLimit` in LucentApi `appsettings.json` (API does not call Radio Browser).
    */
-  radioStationSearchLimit: 500,
+  radioStationSearchLimit: 5000,
   /**
    * When the station’s `<audio>` exposes `seekable` ranges (time-shifted / buffered web radio),
    * don’t allow seeking further back than this many seconds behind the range end (≈ live edge).

@@ -7,7 +7,7 @@ export const environment = {
    * origin (same pattern as dev `proxy.conf.json`).
    */
   radioBrowserBaseUrl: 'https://de1.api.radio-browser.info',
-  /** Keep in sync with `Lucent:RadioStationSearchLimit` in LucentApi appsettings (documentary). */
+  /** Target station count for the globe; >1000 uses paged Radio Browser requests. See appsettings `RadioStationSearchLimit` if you keep them aligned. */
   radioStationSearchLimit: 5000,
   radioPlaybackMaxSeekBackSeconds: 60,
 };
