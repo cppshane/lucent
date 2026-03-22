@@ -174,9 +174,13 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
    * If glow disappears, lower threshold slightly; if clouds bloom again, lower the day cap.
    */
   private readonly globeDayTextureBloomCap = 0.28;
-  private readonly globeBloomStrength = 0.82;
+  private readonly globeBloomStrength = 0.32;
   private readonly globeBloomRadius = 0.55;
   private readonly globeBloomThreshold = 0.34;
+  /** globe.gl built-in limb glow (GlowMesh); tuned for black background + bloom. */
+  private readonly globeAtmosphereColor = 'rgba(255, 255, 255, 0.42)';
+  /** Thickness in globe-radius units (library default 0.15). */
+  private readonly globeAtmosphereAltitude = 0.04;
 
   private readonly geoJsonUrl =
     'https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson';
@@ -402,7 +406,10 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     (globalThis as unknown as { globe?: GlobeInstance }).globe = globe;
 
     globe.backgroundColor('#000000');
-    globe.showAtmosphere(false);
+    globe
+      .showAtmosphere(true)
+      .atmosphereColor(this.globeAtmosphereColor)
+      .atmosphereAltitude(this.globeAtmosphereAltitude);
     globe.showGraticules(false);
     globe.showGlobe(true);
     globe.globeImageUrl(null as unknown as string);
