@@ -15,7 +15,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20' # Or your preferred version
+        node-version: '20'
 
     - name: Install and Build
       run: |
@@ -42,19 +42,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         passphrase: ${{ secrets.SSH_PASSPHRASE }}
-        # Adjust 'dist/your-app-name/browser' to match your actual build folder
-        source: "dist/your-app-name/browser/*"
+        source: "dist/lucent-angular/browser/*"
         target: "/var/www/lucent"
-        strip_components: 3 # Adjust this so files land directly in /lucent
+        strip_components: 3 
         rm: false
-
-    - name: Finalize Permissions (SSH)
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_KEY }}
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
-        script: |
-          sudo /usr/bin/chown -R www-data:www-data /var/www/lucent
-          sudo /usr/bin/chmod -R 755 /var/www/lucent
