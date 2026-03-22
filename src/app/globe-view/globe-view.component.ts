@@ -113,6 +113,11 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private readonly markerRadiusMax = 0.28;
   private readonly markerRadiusMin = 0.005;
   private readonly markerHoverScale = 1.45;
+  /** Invisible pick mesh radius/height vs visible bar (easier hover/click). */
+  private readonly markerHitTargetRadiusFactor = 2.85;
+  private readonly markerHitTargetHeightFactor = 1.12;
+  private readonly streamMarkerVisibleName = 'streamMarkerVisible';
+  private readonly streamMarkerHitName = 'streamMarkerHit';
   /** Cylinder length (`pointAltitude` × globe radius); hybrid linear / log (see viewerCountToPointAltitude) */
   private readonly markerAltitudeMin = 0.003;
   /**
@@ -197,6 +202,8 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private readonly windowResizeHandler = (): void => this.scheduleGlobeLayoutSync();
   /** Shared cylinder body (three-globe points use the same layout). */
   private streamCylinderSharedGeometry: THREE.BufferGeometry | null = null;
+  /** Shared invisible material for pick cylinders (`visible` stays true so Raycaster hits them). */
+  private streamMarkerHitMaterial: THREE.MeshBasicMaterial | null = null;
   private readonly tmpGlobeCenter = new THREE.Vector3();
 
   /** Coalesce resize / CSS width transitions to one WebGL setSize per frame */
@@ -403,11 +410,11 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     globe
       .pointsData([])
       .customThreeObject((d: object) =>
-        this.createStreamMarkerMesh(d as GlobeStreamPoint),
+        this.createStreamMarkerGroup(d as GlobeStreamPoint),
       )
       .customThreeObjectUpdate((obj, d) =>
-        this.updateStreamMarkerMesh(
-          obj as THREE.Mesh,
+        this.updateStreamMarkerGroup(
+          obj as THREE.Group,
           d as GlobeStreamPoint,
           globe.getGlobeRadius(),
         ),
@@ -652,10 +659,31 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     );
   }
 
-  private createStreamMarkerMesh(d: GlobeStreamPoint): THREE.Mesh {
-    const mat = new THREE.MeshLambertMaterial({ transparent: false });
-    this.applyStreamMarkerAppearance(mat, d);
-    return new THREE.Mesh(this.getStreamCylinderGeometry(), mat);
+  private getStreamMarkerHitMaterial(): THREE.MeshBasicMaterial {
+    if (!this.streamMarkerHitMaterial) {
+      this.streamMarkerHitMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+    }
+    return this.streamMarkerHitMaterial;
+  }
+
+  /** Wider/taller invisible cylinder for picking; visible bar is a child (globe.gl resolves `__data` on the group). */
+  private createStreamMarkerGroup(d: GlobeStreamPoint): THREE.Group {
+    const group = new THREE.Group();
+    const geom = this.getStreamCylinderGeometry();
+    const hit = new THREE.Mesh(geom, this.getStreamMarkerHitMaterial());
+    hit.name = this.streamMarkerHitName;
+    const visMat = new THREE.MeshLambertMaterial({ transparent: false });
+    this.applyStreamMarkerAppearance(visMat, d);
+    const vis = new THREE.Mesh(geom, visMat);
+    vis.name = this.streamMarkerVisibleName;
+    group.add(hit);
+    group.add(vis);
+    return group;
   }
 
   private applyStreamMarkerAppearance(
@@ -683,12 +711,20 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       : this.streamMarkerEmissiveIntensity;
   }
 
-  private updateStreamMarkerMesh(
-    mesh: THREE.Mesh,
+  private updateStreamMarkerGroup(
+    group: THREE.Group,
     d: GlobeStreamPoint,
     globeRadius: number,
   ): void {
-    const mat = mesh.material as THREE.MeshLambertMaterial;
+    const vis = group.getObjectByName(
+      this.streamMarkerVisibleName,
+    ) as THREE.Mesh | undefined;
+    const hit = group.getObjectByName(
+      this.streamMarkerHitName,
+    ) as THREE.Mesh | undefined;
+    if (!vis || !hit) return;
+
+    const mat = vis.material as THREE.MeshLambertMaterial;
     this.applyStreamMarkerAppearance(mat, d);
 
     const alt = this.viewerCountToPointAltitude(d.viewerCount);
@@ -700,17 +736,22 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     const rDeg = d.channelLogin === this.hoveredChannelLogin ? hoverR : baseR;
     const pxPerDeg = (2 * Math.PI * globeRadius) / 360;
 
-    this.streamPolarToPosition(d.latitude, d.longitude, 0, globeRadius, mesh.position);
+    this.streamPolarToPosition(d.latitude, d.longitude, 0, globeRadius, group.position);
 
     this.tmpGlobeCenter.set(0, 0, 0);
-    if (mesh.parent) {
-      mesh.parent.localToWorld(this.tmpGlobeCenter);
+    if (group.parent) {
+      group.parent.localToWorld(this.tmpGlobeCenter);
     }
-    mesh.lookAt(this.tmpGlobeCenter);
+    group.lookAt(this.tmpGlobeCenter);
 
     const rs = Math.min(30, rDeg) * pxPerDeg;
     const h = Math.max(alt * globeRadius, 0.1);
-    mesh.scale.set(rs, rs, h);
+    vis.scale.set(rs, rs, h);
+    hit.scale.set(
+      rs * this.markerHitTargetRadiusFactor,
+      rs * this.markerHitTargetRadiusFactor,
+      h * this.markerHitTargetHeightFactor,
+    );
   }
 
   private refreshStreamMarkersOnGlobe(): void {
