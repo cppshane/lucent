@@ -1,0 +1,48 @@
+name: Build and Deploy Frontend
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: ubuntu-1
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install and Build
+      run: |
+        npm install
+        npm run build -- --configuration production
+        # Note: Check if your build output goes to 'dist/project-name/browser' 
+        # or just 'dist/'. Adjust the path below accordingly.
+
+    - name: Stop and Clean (SSH)
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        passphrase: ${{ secrets.SSH_PASSPHRASE }}
+        script: |
+          sudo /usr/bin/rm -rf /var/www/lucent/*
+          sudo /usr/bin/chown shane:shane /var/www/lucent
+
+    - name: Copy Files (SCP)
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        passphrase: ${{ secrets.SSH_PASSPHRASE }}
+        source: "dist/lucent-angular/browser/*"
+        target: "/var/www/lucent"
+        strip_components: 3 
+        rm: false
