@@ -58,14 +58,15 @@ function easeOutQuint(t: number): number {
   return 1 - Math.pow(1 - t, 5);
 }
 
-/** Preloaded so the globe intro runs after heavy work; avoids Tween time-skew from long tasks. */
+/**
+ * Preloaded globe visuals (textures + GeoJSON borders). Stream/radio markers load afterward
+ * so the earth can appear without waiting on LucentApi or Radio Browser.
+ */
 interface GlobeAssetPreload {
   dayTex: THREE.Texture;
   nightTex: THREE.Texture;
   countryFeatures: GeoFeature[];
   borderPaths: BorderPath[];
-  streamPoints: GlobeStreamPoint[];
-  radioPoints: GlobeRadioPoint[];
   disposeTextures(): void;
 }
 
@@ -226,6 +227,10 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private lastFocusedMarkerId: string | null = null;
   private initialStreamHandled = false;
   private initialRadioHandled = false;
+  /** First streams HTTP finished (so `?stream=` can resolve or be abandoned). */
+  private streamsInitialFetchCompleted = false;
+  /** First radio search finished (so `?radio=` can resolve or be abandoned). */
+  private radioInitialFetchCompleted = false;
 
   private layoutObserver: ResizeObserver | null = null;
   private layoutSyncRaf = 0;
@@ -316,12 +321,10 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       }
       this.countryFeatures = preload.countryFeatures;
       this.borderPaths = preload.borderPaths;
-      this.streamPoints = preload.streamPoints;
-      this.radioPoints = preload.radioPoints;
       this.instantiateGlobe(el, preload);
       this.syncSelectedMapFocus();
-      this.tryEmitInitialStreamQuery();
-      void this.tryEmitInitialRadioQuery();
+      void this.fetchAndApplyStreams(true);
+      void this.fetchAndApplyRadio(true);
       this.startStreamsRefreshTimer();
       this.startRadioRefreshTimer();
     });
@@ -339,7 +342,39 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
         return { features: [] as GeoFeature[] };
       });
 
-    const streamsPromise = firstValueFrom(
+    let dayTex: THREE.Texture;
+    let nightTex: THREE.Texture;
+    let geoData: { features: GeoFeature[] };
+    try {
+      [dayTex, nightTex, geoData] = await Promise.all([
+        loader.loadAsync(this.globeDayTextureUrl),
+        loader.loadAsync(this.globeNightTextureUrl),
+        geoJsonPromise,
+      ]);
+    } catch (err) {
+      console.error('Globe day/night textures / GeoJSON preload failed:', err);
+      return null;
+    }
+
+    const countryFeatures = geoData.features.filter((f) => f.properties.ISO_A2 !== 'AQ');
+    const borderPaths = geojsonToBorderPaths(countryFeatures);
+
+    return {
+      dayTex,
+      nightTex,
+      countryFeatures,
+      borderPaths,
+      disposeTextures: () => {
+        dayTex.dispose();
+        nightTex.dispose();
+      },
+    };
+  }
+
+  /** Loads `/api/streams` and updates markers. `isInitial` gates `?stream=` deep-link resolution. */
+  private async fetchAndApplyStreams(isInitial: boolean): Promise<void> {
+    if (!this.alive) return;
+    const rows = await firstValueFrom(
       this.http.get<StreamDto[]>(environment.streamsUrl).pipe(
         catchError((err) => {
           console.error('Streams API failed:', err);
@@ -347,43 +382,28 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
         }),
       ),
     );
-
-    const radioPromise = firstValueFrom(this.radioBrowser.searchStationsWithGeo());
-
-    let dayTex: THREE.Texture;
-    let nightTex: THREE.Texture;
-    try {
-      [dayTex, nightTex] = await Promise.all([
-        loader.loadAsync(this.globeDayTextureUrl),
-        loader.loadAsync(this.globeNightTextureUrl),
-      ]);
-    } catch (err) {
-      console.error('Globe day/night textures failed:', err);
-      return null;
+    if (!this.alive) return;
+    this.streamPoints = this.streamDtosToPoints(rows);
+    if (isInitial) this.streamsInitialFetchCompleted = true;
+    if (this.globe) {
+      this.refreshMapMarkersOnGlobe();
+      this.syncSelectedMapFocus();
     }
+    this.tryEmitInitialStreamQuery();
+  }
 
-    const [geoData, streamRows, radioPoints] = await Promise.all([
-      geoJsonPromise,
-      streamsPromise,
-      radioPromise,
-    ]);
-
-    const countryFeatures = geoData.features.filter((f) => f.properties.ISO_A2 !== 'AQ');
-    const borderPaths = geojsonToBorderPaths(countryFeatures);
-    const streamPoints = this.streamDtosToPoints(streamRows);
-
-    return {
-      dayTex,
-      nightTex,
-      countryFeatures,
-      borderPaths,
-      streamPoints,
-      radioPoints,
-      disposeTextures: () => {
-        dayTex.dispose();
-        nightTex.dispose();
-      },
-    };
+  /** Loads Radio Browser search and updates markers. `isInitial` gates `?radio=` deep-link resolution. */
+  private async fetchAndApplyRadio(isInitial: boolean): Promise<void> {
+    if (!this.alive) return;
+    const rows = await firstValueFrom(this.radioBrowser.searchStationsWithGeo());
+    if (!this.alive) return;
+    this.radioPoints = rows;
+    if (isInitial) this.radioInitialFetchCompleted = true;
+    if (this.globe) {
+      this.refreshMapMarkersOnGlobe();
+      this.syncSelectedMapFocus();
+    }
+    void this.tryEmitInitialRadioQuery();
   }
 
   private streamDtosToPoints(rows: StreamDto[]): GlobeStreamPoint[] {
@@ -423,28 +443,11 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   }
 
   private async refreshRadioFromApi(): Promise<void> {
-    if (!this.alive || !this.globe) return;
-    const rows = await firstValueFrom(this.radioBrowser.searchStationsWithGeo());
-    if (!this.alive || !this.globe) return;
-    this.radioPoints = rows;
-    this.refreshMapMarkersOnGlobe();
-    this.syncSelectedMapFocus();
+    await this.fetchAndApplyRadio(false);
   }
 
   private async refreshStreamsFromApi(): Promise<void> {
-    if (!this.alive || !this.globe) return;
-    const rows = await firstValueFrom(
-      this.http.get<StreamDto[]>(environment.streamsUrl).pipe(
-        catchError((err) => {
-          console.error('Streams refresh failed:', err);
-          return of([] as StreamDto[]);
-        }),
-      ),
-    );
-    if (!this.alive || !this.globe) return;
-    this.streamPoints = this.streamDtosToPoints(rows);
-    this.refreshMapMarkersOnGlobe();
-    this.syncSelectedMapFocus();
+    await this.fetchAndApplyStreams(false);
   }
 
   private instantiateGlobe(el: HTMLElement, preload: GlobeAssetPreload): void {
@@ -876,27 +879,34 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private tryEmitInitialStreamQuery(): void {
     if (this.initialStreamHandled || !this.initialStreamQuery?.trim()) return;
     const q = this.initialStreamQuery.trim().toLowerCase();
-    this.initialStreamHandled = true;
     const match = this.streamPoints.find(
       (p) => p.channelLogin.toLowerCase() === q,
     );
     if (match) {
+      this.initialStreamHandled = true;
       this.ngZone.run(() => this.streamSelected.emit(match));
+      return;
     }
+    if (!this.streamsInitialFetchCompleted) return;
+    this.initialStreamHandled = true;
   }
 
   private async tryEmitInitialRadioQuery(): Promise<void> {
     if (this.initialRadioHandled || !this.initialRadioQuery?.trim()) return;
     const q = this.initialRadioQuery.trim().toLowerCase();
-    this.initialRadioHandled = true;
     const match = this.radioPoints.find(
       (p) => p.stationuuid.toLowerCase() === q,
     );
-    if (!match) return;
+    if (!match) {
+      if (!this.radioInitialFetchCompleted) return;
+      this.initialRadioHandled = true;
+      return;
+    }
     const playUrl = await firstValueFrom(
       this.radioBrowser.notifyStationClick(match.stationuuid),
     );
     if (!this.alive) return;
+    this.initialRadioHandled = true;
     this.ngZone.run(() =>
       this.radioSelected.emit({ station: match, playUrl }),
     );
