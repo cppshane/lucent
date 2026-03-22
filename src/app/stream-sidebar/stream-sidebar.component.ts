@@ -9,24 +9,38 @@ import {
   Output,
   SimpleChanges,
   ViewChild,
+  inject,
 } from '@angular/core';
-import { DecimalPipe, NgIf } from '@angular/common';
+import { DecimalPipe, NgClass, NgIf } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { firstValueFrom } from 'rxjs';
+import { environment } from '../../environments/environment';
+import { PomodoroTimerService } from '../pomodoro-timer.service';
+import type { GlobeRadioSelection } from '../radio.models';
+import { RadioBrowserService } from '../radio-browser.service';
 import type { GlobeStreamPoint } from '../stream.models';
 
 @Component({
   selector: 'app-stream-sidebar',
   standalone: true,
-  imports: [DecimalPipe, NgIf],
+  imports: [DecimalPipe, FormsModule, NgClass, NgIf],
   templateUrl: './stream-sidebar.component.html',
   styleUrl: './stream-sidebar.component.css',
 })
 export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestroy {
-  /** Matches .panel transition (ms) — keep in sync with stream-sidebar.component.css */
   private static readonly slideMs = 380;
 
-  @Input({ required: true }) stream!: GlobeStreamPoint;
+  readonly pomodoro = inject(PomodoroTimerService);
+  private readonly sanitizer = inject(DomSanitizer);
+  private readonly radioBrowser = inject(RadioBrowserService);
+
+  @Input() stream: GlobeStreamPoint | null = null;
+  @Input() radioSelection: GlobeRadioSelection | null = null;
   @Output() closing = new EventEmitter<void>();
+  @Output() closed = new EventEmitter<void>();
+  @Output() resizeActiveChange = new EventEmitter<boolean>();
+  @Output() layoutWidthPxChange = new EventEmitter<number>();
 
   get streamPlatform(): string {
     return (this.stream?.platform ?? 'twitch').toLowerCase();
@@ -40,7 +54,6 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
     return this.streamPlatform === 'kick';
   }
 
-  /** Shown on the external link; `.external` applies `text-transform: uppercase`. */
   get openOnPlatformLabel(): string {
     if (this.isYoutubeStream) return 'Open on YouTube';
     if (this.isKickStream) return 'Open on Kick';
@@ -52,26 +65,36 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
     if (this.isKickStream) return 'Kick player';
     return 'Twitch player';
   }
-  @Output() closed = new EventEmitter<void>();
-  @Output() resizeActiveChange = new EventEmitter<boolean>();
-  @Output() layoutWidthPxChange = new EventEmitter<number>();
+
+  get radioDockSummary(): string {
+    if (!this.radioSelection) return 'No station';
+    const n = this.radioSelection.station.name;
+    return n.length > 38 ? `${n.slice(0, 36)}…` : n;
+  }
 
   @ViewChild('panelRef', { read: ElementRef })
   panelRef?: ElementRef<HTMLElement>;
 
+  @ViewChild('radioAudio') radioAudioRef?: ElementRef<HTMLAudioElement>;
+
   safePlayerUrl: SafeResourceUrl | null = null;
-  /** Default open width; user drag updates this */
+  /** Stream URL only — no audio samples are stored in app memory; buffering is the browser’s `<audio>`. */
+  radioAudioUrl: string | null = null;
+  radioResolveFailed = false;
   panelWidthPx: number | null = 640;
 
   private resizing = false;
   private resizeStartX = 0;
   private resizeStartWidth = 0;
   private layoutEmitRaf = 0;
-  /** Slide-in from right after mount */
   panelOpen = false;
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly sanitizer: DomSanitizer) {}
+  pomodoroSectionExpanded = false;
+  radioSectionExpanded = false;
+
+  /** Dedupe canplay + loadeddata double fire per src. */
+  private radioAutoplayUrl: string | null = null;
 
   ngAfterViewInit(): void {
     requestAnimationFrame(() => {
@@ -83,11 +106,106 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!changes['stream'] || !this.stream) return;
-    this.safePlayerUrl = this.stream.channelLogin
-      ? this.buildPlayerUrl(this.stream.channelLogin)
-      : null;
-    queueMicrotask(() => this.emitLayoutWidth());
+    if (changes['stream']) {
+      if (this.stream) {
+        this.safePlayerUrl = this.buildPlayerUrl(this.stream.channelLogin);
+      } else {
+        this.safePlayerUrl = null;
+      }
+    }
+    if (changes['radioSelection']) {
+      if (!this.radioSelection) {
+        this.radioAudioUrl = null;
+        this.radioResolveFailed = false;
+        this.radioSectionExpanded = false;
+        this.radioAutoplayUrl = null;
+      } else {
+        this.radioAudioUrl = this.radioSelection.playUrl ?? null;
+        this.radioResolveFailed = false;
+        this.radioSectionExpanded = true;
+        this.radioAutoplayUrl = null;
+        void this.ensureRadioPlayUrl();
+        if (this.radioAudioUrl) {
+          this.scheduleRadioAutoplay();
+        }
+      }
+    }
+    if (changes['stream'] || changes['radioSelection']) {
+      queueMicrotask(() => this.emitLayoutWidth());
+    }
+  }
+
+  toggleRadioSection(): void {
+    this.radioSectionExpanded = !this.radioSectionExpanded;
+    if (this.radioSectionExpanded && this.radioSelection && !this.radioAudioUrl) {
+      void this.ensureRadioPlayUrl();
+    }
+    if (this.radioSectionExpanded && this.radioAudioUrl) {
+      this.radioAutoplayUrl = null;
+      this.scheduleRadioAutoplay();
+    }
+  }
+
+  private async ensureRadioPlayUrl(): Promise<void> {
+    const st = this.radioSelection?.station;
+    if (!st) return;
+    if (this.radioAudioUrl) return;
+    const url = await firstValueFrom(
+      this.radioBrowser.notifyStationClick(st.stationuuid),
+    );
+    this.radioAudioUrl = url;
+    this.radioResolveFailed = !url;
+    this.radioAutoplayUrl = null;
+    if (url) {
+      this.scheduleRadioAutoplay();
+    }
+  }
+
+  /** After globe click / URL resolve; double rAF waits for `@if` to attach `ViewChild`. */
+  private scheduleRadioAutoplay(): void {
+    const tryPlay = (): void => {
+      const el = this.radioAudioRef?.nativeElement;
+      if (!el || !this.radioAudioUrl) return;
+      void el.play().catch(() => {
+        /* Autoplay may be blocked; `onRadioAudioReady` retries after decode. */
+      });
+    };
+    queueMicrotask(() => {
+      requestAnimationFrame(() => requestAnimationFrame(tryPlay));
+    });
+  }
+
+  onRadioAudioReady(): void {
+    const el = this.radioAudioRef?.nativeElement;
+    const url = this.radioAudioUrl;
+    if (!el || !url) return;
+    if (this.radioAutoplayUrl === url) return;
+    this.radioAutoplayUrl = url;
+    void el.play().catch(() => {});
+  }
+
+  /**
+   * If the stream exposes `seekable` ranges (time-shifted web radio), clamp seeks so playback
+   * cannot sit more than `environment.radioPlaybackMaxSeekBackSeconds` behind the range end.
+   * Many live-only streams have empty `seekable` — then this is a no-op.
+   */
+  onRadioSeekClamp(): void {
+    const maxBack = environment.radioPlaybackMaxSeekBackSeconds;
+    if (maxBack <= 0) return;
+    const el = this.radioAudioRef?.nativeElement;
+    if (!el || el.seekable.length === 0) return;
+    try {
+      const i = el.seekable.length - 1;
+      const rangeEnd = el.seekable.end(i);
+      const rangeStart = el.seekable.start(i);
+      if (!Number.isFinite(rangeEnd)) return;
+      const minAllowed = Math.max(rangeStart, rangeEnd - maxBack);
+      if (el.currentTime < minAllowed) {
+        el.currentTime = minAllowed;
+      }
+    } catch {
+      /* Some streams throw when querying seekable while not ready */
+    }
   }
 
   private buildPlayerUrl(channel: string): SafeResourceUrl {
@@ -154,11 +272,12 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   private readonly onResizeMouseMove = (ev: MouseEvent): void => {
     if (!this.resizing) return;
 
-    // Right-anchored panel: dragging left edge left increases width.
     const delta = this.resizeStartX - ev.clientX;
     const next = this.resizeStartWidth + delta;
-    const min = Math.min(520, window.innerWidth);
-    const max = Math.min(980, Math.floor(window.innerWidth * 0.82));
+    const gutter = 12;
+    const max = Math.max(gutter + 160, window.innerWidth - gutter);
+    const minCandidate = Math.min(520, window.innerWidth);
+    const min = Math.min(minCandidate, max);
     this.panelWidthPx = Math.max(min, Math.min(max, next));
     this.scheduleLayoutWidthEmit();
   };
@@ -189,5 +308,9 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
     if (!el) return;
     const w = Math.round(el.getBoundingClientRect().width);
     if (w > 0) this.layoutWidthPxChange.emit(w);
+  }
+
+  togglePomodoroSection(): void {
+    this.pomodoroSectionExpanded = !this.pomodoroSectionExpanded;
   }
 }

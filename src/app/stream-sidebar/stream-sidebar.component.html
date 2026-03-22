@@ -7,41 +7,208 @@
   [style.width.px]="panelWidthPx"
 >
   <div class="resize-edge" aria-hidden="true" (mousedown)="onResizeMouseDown($event)"></div>
-  <div class="panel-head">
-    <div class="eyebrow"><span class="live-dot" aria-hidden="true"></span>live stream</div>
-    <button type="button" class="close" (click)="onCloseClick()" aria-label="Close">
-      <span aria-hidden="true">×</span>
-    </button>
-  </div>
 
-  <h2 class="title">{{ stream.title }}</h2>
-  <div class="meta-row">
-    <p class="meta">{{ stream.viewerCount | number }} watching</p>
-    <a
-      class="external"
-      [class.external--youtube]="isYoutubeStream"
-      [class.external--kick]="isKickStream"
-      [href]="stream.link"
-      target="_blank"
-      rel="noopener noreferrer"
-      >{{ openOnPlatformLabel }}</a
-    >
-  </div>
-
-  <ng-container *ngIf="safePlayerUrl; else noPlayer">
-    <div class="player-wrap">
-      <iframe
-        [src]="safePlayerUrl"
-        [title]="embedPlayerTitle"
-        allowfullscreen
-        allow="autoplay; fullscreen; picture-in-picture"
-      ></iframe>
+  <div class="panel-scroll">
+    <div class="panel-head">
+      @if (stream) {
+        <div class="eyebrow"><span class="live-dot" aria-hidden="true"></span>live stream</div>
+      } @else {
+        <div class="eyebrow eyebrow--muted">live stream</div>
+      }
+      <button type="button" class="close" (click)="onCloseClick()" aria-label="Close">
+        <span aria-hidden="true">×</span>
+      </button>
     </div>
-  </ng-container>
-  <ng-template #noPlayer>
-    <p class="no-embed">Playback unavailable for this link.</p>
-  </ng-template>
 
-  <div class="section-title">channel description</div>
-  <p class="desc">{{ stream.description }}</p>
+    @if (stream) {
+      <h2 class="title">{{ stream.title }}</h2>
+      <div class="meta-row">
+        <p class="meta">{{ stream.viewerCount | number }} watching</p>
+        <a
+          class="external"
+          [class.external--youtube]="isYoutubeStream"
+          [class.external--kick]="isKickStream"
+          [href]="stream.link"
+          target="_blank"
+          rel="noopener noreferrer"
+          >{{ openOnPlatformLabel }}</a
+        >
+      </div>
+
+      <ng-container *ngIf="safePlayerUrl; else noPlayer">
+        <div class="player-wrap">
+          <iframe
+            [src]="safePlayerUrl"
+            [title]="embedPlayerTitle"
+            allowfullscreen
+            allow="autoplay; fullscreen; picture-in-picture"
+          ></iframe>
+        </div>
+      </ng-container>
+      <ng-template #noPlayer>
+        <p class="no-embed">Playback unavailable for this link.</p>
+      </ng-template>
+
+      <div class="section-title">channel description</div>
+      <p class="desc">{{ stream.description }}</p>
+    } @else {
+      <p class="stream-placeholder">Select a live stream marker on the globe.</p>
+    }
+  </div>
+
+  <footer class="radio-dock" aria-label="Radio">
+    <button
+      type="button"
+      class="radio-toggle"
+      (click)="toggleRadioSection()"
+      [attr.aria-expanded]="radioSectionExpanded"
+      [attr.aria-controls]="radioSectionExpanded ? 'radio-expanded' : null"
+      id="radio-toggle"
+    >
+      <span class="radio-chevron" aria-hidden="true">{{ radioSectionExpanded ? '▼' : '▸' }}</span>
+      <span class="radio-toggle-title">Radio</span>
+      <span class="radio-toggle-summary" aria-live="polite">{{ radioDockSummary }}</span>
+    </button>
+
+    @if (radioSectionExpanded) {
+      <div id="radio-expanded" class="radio-expanded" role="region" aria-labelledby="radio-toggle">
+        @if (radioSelection; as sel) {
+          <div class="eyebrow">
+            <span class="radio-dot" aria-hidden="true"></span>
+            radio
+          </div>
+          <h2 class="title">{{ sel.station.name }}</h2>
+          <div class="meta-row">
+            <p class="meta">
+              @if (sel.station.country || sel.station.countrycode) {
+                {{ sel.station.country }}
+                @if (sel.station.countrycode) {
+                  <span class="radio-cc">({{ sel.station.countrycode }})</span>
+                }
+              } @else {
+                Internet radio
+              }
+            </p>
+            @if (sel.station.homepage) {
+              <a
+                class="external external--radio"
+                [href]="sel.station.homepage"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Station homepage</a
+              >
+            }
+          </div>
+          @if (radioAudioUrl) {
+            <div class="player-wrap player-wrap--radio">
+              <div class="radio-player-frame">
+                <audio
+                  #radioAudio
+                  class="radio-player"
+                  [src]="radioAudioUrl"
+                  controls
+                  preload="metadata"
+                  playsinline
+                  controlsList="nodownload"
+                  (loadeddata)="onRadioAudioReady()"
+                  (canplay)="onRadioAudioReady()"
+                  (seeked)="onRadioSeekClamp()"
+                ></audio>
+              </div>
+            </div>
+          } @else if (radioResolveFailed) {
+            <p class="no-embed">Could not resolve a stream URL for this station.</p>
+          } @else {
+            <p class="no-embed radio-loading">Resolving stream…</p>
+          }
+        } @else {
+          <p class="stream-placeholder">Select a white radio marker on the globe.</p>
+        }
+      </div>
+    }
+  </footer>
+
+  <footer class="pomodoro-dock" aria-label="Pomodoro timer">
+    <button
+      type="button"
+      class="pomodoro-toggle"
+      (click)="togglePomodoroSection()"
+      [attr.aria-expanded]="pomodoroSectionExpanded"
+      [attr.aria-controls]="pomodoroSectionExpanded ? 'pomodoro-expanded' : null"
+      id="pomodoro-toggle"
+    >
+      <span class="pomodoro-chevron" aria-hidden="true">{{
+        pomodoroSectionExpanded ? '▼' : '▸'
+      }}</span>
+      <span class="pomodoro-toggle-title">Pomodoro</span>
+      <span class="pomodoro-toggle-summary">
+        <span class="pomodoro-toggle-phase">{{ pomodoro.phaseLabel() }}</span>
+        <span class="pomodoro-toggle-time" aria-live="polite">{{ pomodoro.timeLabel() }}</span>
+      </span>
+    </button>
+
+    <div
+      class="pomodoro-bar-track"
+      [ngClass]="{
+        'pomodoro-bar-track--slim': !pomodoroSectionExpanded,
+        'pomodoro-bar-track--expanded': pomodoroSectionExpanded,
+        'pomodoro-bar-track--hidden': !pomodoro.barVisible(),
+      }"
+      aria-hidden="true"
+    >
+      <div
+        class="pomodoro-bar-fill"
+        [class.pomodoro-bar-fill--break]="pomodoro.phase() === 'short_break'"
+        [style.width.%]="pomodoro.progressPercent()"
+      ></div>
+    </div>
+
+    @if (pomodoroSectionExpanded) {
+      <div id="pomodoro-expanded" class="pomodoro-expanded" role="region" aria-labelledby="pomodoro-toggle">
+        <div class="pomodoro-display">
+          <span class="pomodoro-phase">{{ pomodoro.phaseLabel() }}</span>
+          <span class="pomodoro-time" aria-live="polite">{{ pomodoro.timeLabel() }}</span>
+        </div>
+        <div class="pomodoro-config" [class.pomodoro-config--locked]="pomodoro.configLocked()">
+          <label class="pomodoro-field">
+            <span>Focus</span>
+            <input
+              type="number"
+              name="pomWork"
+              [ngModel]="pomodoro.workMin()"
+              (ngModelChange)="pomodoro.updateWorkMin($event)"
+              [disabled]="pomodoro.configLocked()"
+              min="1"
+              max="180"
+              step="1"
+            />
+          </label>
+          <label class="pomodoro-field">
+            <span>Break</span>
+            <input
+              type="number"
+              name="pomBreak"
+              [ngModel]="pomodoro.breakMin()"
+              (ngModelChange)="pomodoro.updateBreakMin($event)"
+              [disabled]="pomodoro.configLocked()"
+              min="1"
+              max="60"
+              step="1"
+            />
+          </label>
+        </div>
+      </div>
+    }
+
+    <div class="pomodoro-actions">
+      @if (!pomodoro.running()) {
+        <button type="button" class="pomodoro-btn pomodoro-btn--primary" (click)="pomodoro.startOrResume()">
+          {{ pomodoro.phase() === 'idle' ? 'Start' : 'Resume' }}
+        </button>
+      } @else {
+        <button type="button" class="pomodoro-btn" (click)="pomodoro.pause()">Pause</button>
+      }
+      <button type="button" class="pomodoro-btn pomodoro-btn--ghost" (click)="pomodoro.reset()">Reset</button>
+    </div>
+  </footer>
 </aside>

@@ -7,14 +7,15 @@
   right: 0;
   z-index: 50;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   width: min(640px, 100vw);
-  min-width: min(520px, 100vw);
-  max-width: min(82vw, 980px);
+  min-width: min(260px, 100vw);
+  max-width: calc(100vw - 12px);
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   resize: none;
-  padding: 1rem 1.15rem 1.6rem;
+  padding: 0;
   background: linear-gradient(180deg, #111419 0%, #0d1014 45%, #0a0d12 100%);
   color: #e8eaed;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
@@ -22,6 +23,14 @@
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   transform: translateX(100%);
   transition: transform var(--sidebar-slide-duration) var(--sidebar-slide-ease);
+}
+
+.panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1rem 1.15rem 1rem;
 }
 
 .panel.panel--open {
@@ -43,6 +52,181 @@
   justify-content: space-between;
   margin-bottom: 0.85rem;
   padding-left: 0.85rem;
+}
+
+.eyebrow--muted {
+  opacity: 0.42;
+}
+
+.stream-placeholder {
+  margin: 1.25rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(232, 234, 237, 0.5);
+}
+
+.radio-cc {
+  margin-left: 0.25rem;
+  opacity: 0.75;
+}
+
+.external.external--radio {
+  margin-bottom: 0.65rem;
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #eef1f5;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.external.external--radio:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.radio-dock {
+  flex-shrink: 0;
+  padding: 0.65rem 1.15rem 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(14, 16, 22, 0.92) 0%, #0a0c12 100%);
+}
+
+.radio-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: rgba(200, 170, 255, 0.95);
+  box-shadow: 0 0 8px rgba(158, 95, 255, 0.85);
+}
+
+/* Frame fill matches ::-webkit-media-controls-panel so rounded corners don’t show a darker rim */
+.radio-player-frame {
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1c212c 0%, #11151c 100%);
+  line-height: 0;
+}
+
+.radio-player {
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  margin: 0;
+  color-scheme: dark;
+  accent-color: #b794f6;
+}
+
+/* Chromium / Safari — padding separates time text from the scrub bar */
+.radio-player::-webkit-media-controls-panel {
+  background: linear-gradient(180deg, #1c212c 0%, #11151c 100%);
+  padding: 10px 12px 12px;
+}
+
+.radio-player::-webkit-media-controls-enclosure {
+  overflow: hidden;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.radio-player::-webkit-media-controls-current-time-display,
+.radio-player::-webkit-media-controls-time-remaining-display {
+  color: rgba(232, 234, 237, 0.9);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0 6px 4px;
+  padding: 0 2px;
+}
+
+.radio-player::-webkit-media-controls-timeline-container {
+  margin-top: 2px;
+  padding: 4px 4px 0;
+}
+
+.radio-player::-webkit-media-controls-timeline {
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.12);
+  margin: 0 2px;
+}
+
+.radio-player::-webkit-media-controls-play-button,
+.radio-player::-webkit-media-controls-mute-button {
+  filter: brightness(1.12);
+}
+
+.radio-loading {
+  font-style: italic;
+}
+
+.radio-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.2rem 0.45rem;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.radio-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.radio-chevron {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+  font-size: 0.55rem;
+  line-height: 1;
+  color: rgba(232, 234, 237, 0.45);
+}
+
+.radio-toggle-title {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(232, 234, 237, 0.55);
+}
+
+.radio-toggle-summary {
+  margin-left: auto;
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  color: rgba(232, 234, 237, 0.72);
+}
+
+.radio-expanded {
+  padding: 0.35rem 0 0.25rem;
+}
+
+.radio-expanded .eyebrow {
+  margin-bottom: 0.35rem;
+}
+
+/* Same chrome as video `player-wrap`; no 16:9 — audio bar only */
+.player-wrap.player-wrap--radio {
+  position: relative;
+  aspect-ratio: unset;
+  height: auto;
+  min-height: unset;
+  padding: 0;
+  margin-bottom: 0.35rem;
+  background: #000;
+}
+
+.player-wrap.player-wrap--radio .radio-player-frame {
+  position: relative;
+  border-radius: 10px;
 }
 
 .eyebrow {
@@ -142,12 +326,259 @@
 }
 
 .desc {
-  margin: 0 0 1rem;
+  margin: 0;
   font-size: 0.78rem;
   line-height: 1.5;
   color: rgba(232, 234, 237, 0.75);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.pomodoro-dock {
+  flex-shrink: 0;
+  padding: 0.55rem 1.15rem 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(10, 13, 18, 0.5) 0%, #080a0e 100%);
+}
+
+.pomodoro-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.2rem 0.5rem;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.pomodoro-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pomodoro-chevron {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+  font-size: 0.55rem;
+  line-height: 1;
+  color: rgba(232, 234, 237, 0.45);
+}
+
+.pomodoro-toggle-title {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(232, 234, 237, 0.55);
+}
+
+.pomodoro-toggle-summary {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pomodoro-toggle-phase {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(232, 234, 237, 0.5);
+}
+
+.pomodoro-toggle-time {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #c4a8ff;
+  text-shadow: 0 0 12px rgba(158, 95, 255, 0.35);
+}
+
+.pomodoro-bar-track {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.52);
+  overflow: hidden;
+  margin-bottom: 0.55rem;
+  transition:
+    height 0.22s ease,
+    margin-bottom 0.22s ease,
+    opacity 0.2s ease;
+}
+
+.pomodoro-bar-track--slim {
+  height: 5px;
+}
+
+.pomodoro-bar-track--expanded {
+  height: 12px;
+}
+
+.pomodoro-bar-track--hidden {
+  height: 0;
+  margin-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pomodoro-bar-fill {
+  height: 100%;
+  width: 0;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5c3aa8 0%, #b894ff 55%, #e8d4ff 100%);
+  box-shadow:
+    0 0 10px rgba(158, 95, 255, 0.95),
+    0 0 22px rgba(158, 95, 255, 0.45),
+    0 0 36px rgba(158, 95, 255, 0.2);
+  transition: width 0.45s linear;
+}
+
+.pomodoro-bar-fill--break {
+  background: linear-gradient(90deg, #1a6b52 0%, #4ae0a8 55%, #c4ffe8 100%);
+  box-shadow:
+    0 0 10px rgba(64, 220, 130, 0.75),
+    0 0 22px rgba(64, 220, 130, 0.38),
+    0 0 34px rgba(64, 220, 130, 0.18);
+}
+
+.pomodoro-expanded {
+  padding-bottom: 0.15rem;
+}
+
+.pomodoro-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.pomodoro-expanded .pomodoro-display {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+
+.pomodoro-phase {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(232, 234, 237, 0.55);
+}
+
+.pomodoro-time {
+  font-size: 1.45rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #c4a8ff;
+  text-shadow: 0 0 20px rgba(158, 95, 255, 0.4);
+  line-height: 1.1;
+}
+
+.pomodoro-config {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.pomodoro-config--locked {
+  opacity: 0.72;
+}
+
+.pomodoro-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(232, 234, 237, 0.48);
+}
+
+.pomodoro-field input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.32rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #e8eaed;
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+.pomodoro-field input:focus {
+  outline: none;
+  border-color: rgba(158, 95, 255, 0.55);
+}
+
+.pomodoro-field input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.pomodoro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.pomodoro-btn {
+  flex: 1;
+  min-width: 4.5rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8eaed;
+  font-family: inherit;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.pomodoro-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.pomodoro-btn--primary {
+  border-color: rgba(158, 95, 255, 0.55);
+  background: rgba(145, 70, 255, 0.22);
+  color: #e8d8ff;
+}
+
+.pomodoro-btn--primary:hover {
+  background: rgba(145, 70, 255, 0.32);
+  border-color: rgba(196, 153, 255, 0.75);
+}
+
+.pomodoro-btn--ghost {
+  flex: 0;
+  min-width: unset;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(232, 234, 237, 0.55);
+}
+
+.pomodoro-btn--ghost:hover {
+  color: #e8eaed;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .external {

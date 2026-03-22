@@ -15,6 +15,7 @@ export interface StreamDto {
 /** globe.gl point + sidebar (parsed Twitch login). */
 export interface GlobeStreamPoint extends StreamDto {
   channelLogin: string;
+  kind: 'stream';
 }
 
 export function twitchLoginFromLink(link: string): string | null {
@@ -86,5 +87,5 @@ export function toGlobeStreamPoint(d: StreamDto): GlobeStreamPoint | null {
   if (!channelLogin) return null;
   if (!Number.isFinite(d.latitude) || !Number.isFinite(d.longitude)) return null;
   const platform = (d.platform ?? 'twitch').toLowerCase();
-  return { ...d, platform, channelLogin };
+  return { ...d, platform, channelLogin, kind: 'stream' as const };
 }

@@ -3,5 +3,13 @@
     "target": "http://localhost:5264",
     "secure": false,
     "changeOrigin": true
+  },
+  "/radio-browser": {
+    "target": "https://de1.api.radio-browser.info",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/radio-browser": ""
+    }
   }
 }

@@ -1,14 +1,18 @@
 <h1 class="site-title">lucent.earth</h1>
 <app-globe-view
-  [sidebarOpen]="selectedStream !== null"
+  [sidebarOpen]="sidebarOpen"
   [sidebarInsetSnap]="sidebarPanelResizing"
   [selectedStream]="selectedStream"
+  [selectedRadio]="selectedRadio"
   [initialStreamQuery]="initialStreamQuery"
+  [initialRadioQuery]="initialRadioQuery"
   (streamSelected)="onStreamSelected($event)"
+  (radioSelected)="onRadioSelected($event)"
 />
-@if (selectedStream) {
+@if (sidebarOpen) {
   <app-stream-sidebar
     [stream]="selectedStream"
+    [radioSelection]="selectedRadio"
     (closing)="onSidebarClosing()"
     (closed)="onSidebarClosed()"
     (resizeActiveChange)="sidebarPanelResizing = $event"
