@@ -21,8 +21,6 @@ jobs:
       run: |
         npm install
         npm run build -- --configuration production
-        # Note: Check if your build output goes to 'dist/project-name/browser' 
-        # or just 'dist/'. Adjust the path below accordingly.
 
     - name: Stop and Clean (SSH)
       uses: appleboy/ssh-action@v1.0.3
@@ -33,7 +31,6 @@ jobs:
         passphrase: ${{ secrets.SSH_PASSPHRASE }}
         script: |
           sudo /usr/bin/rm -rf /var/www/lucent/*
-          sudo /usr/bin/chown shane:shane /var/www/lucent
 
     - name: Copy Files (SCP)
       uses: appleboy/scp-action@v0.1.7
