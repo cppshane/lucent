@@ -25,6 +25,13 @@
   transition: transform var(--sidebar-slide-duration) var(--sidebar-slide-ease);
 }
 
+/* Full viewport width on narrow screens; matches TS `mobileSidebarMaxCssPx`. */
+.panel.panel--mobile-full {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
 .panel-scroll {
   flex: 1;
   min-height: 0;

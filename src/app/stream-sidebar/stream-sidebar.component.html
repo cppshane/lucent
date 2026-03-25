@@ -2,11 +2,14 @@
   #panelRef
   class="panel"
   [class.panel--open]="panelOpen"
+  [class.panel--mobile-full]="isMobileSidebarLayout"
   role="dialog"
   aria-label="Stream details"
   [style.width.px]="panelWidthPx"
 >
-  <div class="resize-edge" aria-hidden="true" (mousedown)="onResizeMouseDown($event)"></div>
+  @if (!isMobileSidebarLayout) {
+    <div class="resize-edge" aria-hidden="true" (mousedown)="onResizeMouseDown($event)"></div>
+  }
 
   <div class="panel-scroll">
     <div class="panel-head">

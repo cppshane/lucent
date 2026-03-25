@@ -4,6 +4,7 @@ import {
   ElementRef,
   EventEmitter,
   Input,
+  NgZone,
   OnChanges,
   OnDestroy,
   Output,
@@ -30,10 +31,13 @@ import type { GlobeStreamPoint } from '../stream.models';
 })
 export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestroy {
   private static readonly slideMs = 380;
+  /** Viewport max-width at which the sidebar is fixed full-width (no drag resize). */
+  private static readonly mobileSidebarMaxCssPx = 768;
 
   readonly pomodoro = inject(PomodoroTimerService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly radioBrowser = inject(RadioBrowserService);
+  private readonly ngZone = inject(NgZone);
 
   @Input() stream: GlobeStreamPoint | null = null;
   @Input() radioSelection: GlobeRadioSelection | null = null;
@@ -82,6 +86,8 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   radioAudioUrl: string | null = null;
   radioResolveFailed = false;
   panelWidthPx: number | null = 640;
+  /** True: sidebar is full viewport width and not user-resizable. */
+  isMobileSidebarLayout = false;
 
   private resizing = false;
   private resizeStartX = 0;
@@ -96,7 +102,20 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   /** Dedupe canplay + loadeddata double fire per src. */
   private radioAutoplayUrl: string | null = null;
 
+  private mobileLayoutMql: MediaQueryList | null = null;
+  private readonly onMobileLayoutMqlChange = (): void => {
+    this.applyMobileSidebarLayoutFromMql();
+  };
+  private readonly onWindowResizeForMobileWidth = (): void => {
+    if (!this.isMobileSidebarLayout) return;
+    this.ngZone.run(() => {
+      this.panelWidthPx = window.innerWidth;
+      this.scheduleLayoutWidthEmit();
+    });
+  };
+
   ngAfterViewInit(): void {
+    this.setupMobileSidebarLayoutListener();
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         this.panelOpen = true;
@@ -245,6 +264,7 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   onResizeMouseDown(ev: MouseEvent): void {
+    if (this.isMobileSidebarLayout) return;
     ev.preventDefault();
     this.resizing = true;
     this.resizeActiveChange.emit(true);
@@ -259,6 +279,7 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   ngOnDestroy(): void {
+    this.teardownMobileSidebarLayoutListener();
     window.removeEventListener('mousemove', this.onResizeMouseMove);
     window.removeEventListener('mouseup', this.onResizeMouseUp);
     if (this.layoutEmitRaf) cancelAnimationFrame(this.layoutEmitRaf);
@@ -312,5 +333,33 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
 
   togglePomodoroSection(): void {
     this.pomodoroSectionExpanded = !this.pomodoroSectionExpanded;
+  }
+
+  private setupMobileSidebarLayoutListener(): void {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const q = `(max-width: ${StreamSidebarComponent.mobileSidebarMaxCssPx}px)`;
+    this.mobileLayoutMql = window.matchMedia(q);
+    this.applyMobileSidebarLayoutFromMql();
+    this.mobileLayoutMql.addEventListener('change', this.onMobileLayoutMqlChange);
+    window.addEventListener('resize', this.onWindowResizeForMobileWidth);
+  }
+
+  private teardownMobileSidebarLayoutListener(): void {
+    this.mobileLayoutMql?.removeEventListener('change', this.onMobileLayoutMqlChange);
+    this.mobileLayoutMql = null;
+    window.removeEventListener('resize', this.onWindowResizeForMobileWidth);
+  }
+
+  private applyMobileSidebarLayoutFromMql(): void {
+    const next = this.mobileLayoutMql?.matches ?? false;
+    this.ngZone.run(() => {
+      this.isMobileSidebarLayout = next;
+      if (next) {
+        this.panelWidthPx = window.innerWidth;
+      } else if (this.panelWidthPx === null || this.panelWidthPx >= window.innerWidth) {
+        this.panelWidthPx = 640;
+      }
+      this.scheduleLayoutWidthEmit();
+    });
   }
 }
