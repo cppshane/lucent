@@ -128,8 +128,13 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private readonly markerRadiusMin = 0.005;
   private readonly markerHoverScale = 1.45;
   /** Invisible pick mesh radius/height vs visible bar (easier hover/click). */
-  private readonly markerHitTargetRadiusFactor = 2.85;
-  private readonly markerHitTargetHeightFactor = 1.12;
+  private markerHitTargetRadiusFactor = 2.85;
+  private markerHitTargetHeightFactor = 1.12;
+  private readonly markerHitTargetRadiusFactorFinePointer = 2.85;
+  private readonly markerHitTargetHeightFactorFinePointer = 1.12;
+  /** Larger on touch / hybrid devices — fat-finger targets without widening mouse-only overlap. */
+  private readonly markerHitTargetRadiusFactorCoarsePointer = 5;
+  private readonly markerHitTargetHeightFactorCoarsePointer = 1.5;
   private readonly streamMarkerVisibleName = 'streamMarkerVisible';
   private readonly streamMarkerHitName = 'streamMarkerHit';
   /** Cylinder length (`pointAltitude` × globe radius); hybrid linear / log (see viewerCountToPointAltitude) */
@@ -298,6 +303,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
 
   private initGlobe(): void {
     this.alive = true;
+    this.configureMarkerHitTargets();
     const el = this.globeHost.nativeElement;
 
     this.layoutObserver = new ResizeObserver(() => this.scheduleGlobeLayoutSync());
@@ -743,6 +749,17 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       });
     }
     return this.streamMarkerHitMaterial;
+  }
+
+  /** Touch / stylus-primary devices get a wider invisible cylinder (see `updateMapMarkerGroup`). */
+  private configureMarkerHitTargets(): void {
+    this.markerHitTargetRadiusFactor = this.markerHitTargetRadiusFactorFinePointer;
+    this.markerHitTargetHeightFactor = this.markerHitTargetHeightFactorFinePointer;
+    if (typeof matchMedia === 'undefined') return;
+    if (matchMedia('(any-pointer: coarse)').matches) {
+      this.markerHitTargetRadiusFactor = this.markerHitTargetRadiusFactorCoarsePointer;
+      this.markerHitTargetHeightFactor = this.markerHitTargetHeightFactorCoarsePointer;
+    }
   }
 
   /** Wider/taller invisible cylinder for picking; visible bar is a child (globe.gl resolves `__data` on the group). */
