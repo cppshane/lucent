@@ -119,13 +119,14 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
    * Closest zoom allowed (globe.gl POV `altitude`; smaller = closer). No tile map — this
    * replaces the old map-mode threshold as a hard stop for zoom and interaction.
    */
-  private readonly minCameraAltitude = 0.25;
+  private readonly minCameraAltitude = 0.006;
   /** Camera distance in globe radii; larger = more zoomed out */
   private readonly initialGlobeAltitude = 2.65;
   private readonly selectedFocusAltitude = 0.42;
   private readonly selectedFocusTransitionMs = 900;
   private readonly markerRadiusMax = 0.28;
-  private readonly markerRadiusMin = 0.005;
+  /** Angular radius (deg) at `minCameraAltitude`; keeps bars slim when fully zoomed in. */
+  private readonly markerRadiusMin = 0.0022;
   private readonly markerHoverScale = 1.45;
   /** Invisible pick mesh radius/height vs visible bar (easier hover/click). */
   private markerHitTargetRadiusFactor = 2.85;
@@ -269,6 +270,9 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     this.syncAutoRotate();
     this.syncSelectedMapFocus();
+    if (changes['selectedStream'] || changes['selectedRadio']) {
+      queueMicrotask(() => this.refreshMapMarkersOnGlobe());
+    }
     if (changes['sidebarOpen']) {
       queueMicrotask(() => this.scheduleGlobeLayoutSync());
     }
@@ -781,14 +785,31 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     return group;
   }
 
+  /** Hover or current sidebar selection — keeps glow on the active marker. */
+  private streamMarkerHighlighted(d: GlobeStreamPoint): boolean {
+    return (
+      d.channelLogin === this.hoveredMarkerId ||
+      (this.selectedStream !== null &&
+        d.channelLogin === this.selectedStream.channelLogin)
+    );
+  }
+
+  private radioMarkerHighlighted(d: GlobeRadioPoint): boolean {
+    return (
+      d.markerId === this.hoveredMarkerId ||
+      (this.selectedRadio !== null &&
+        d.markerId === this.selectedRadio.station.markerId)
+    );
+  }
+
   private applyRadioMarkerAppearance(
     mat: THREE.MeshLambertMaterial,
     d: GlobeRadioPoint,
   ): void {
-    const hover = d.markerId === this.hoveredMarkerId;
-    mat.color.set(hover ? this.radioMarkerHoverColor : this.radioMarkerColor);
+    const hi = this.radioMarkerHighlighted(d);
+    mat.color.set(hi ? this.radioMarkerHoverColor : this.radioMarkerColor);
     mat.emissive.copy(mat.color);
-    mat.emissiveIntensity = hover
+    mat.emissiveIntensity = hi
       ? this.radioMarkerHoverEmissiveIntensity
       : this.radioMarkerEmissiveIntensity;
   }
@@ -797,7 +818,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     mat: THREE.MeshLambertMaterial,
     d: GlobeStreamPoint,
   ): void {
-    const hover = d.channelLogin === this.hoveredMarkerId;
+    const highlighted = this.streamMarkerHighlighted(d);
     const p = (d.platform ?? 'twitch').toLowerCase();
     const base =
       p === 'youtube'
@@ -811,9 +832,9 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
         : p === 'kick'
           ? this.streamMarkerHoverColorKick
           : this.streamMarkerHoverColorTwitch;
-    mat.color.set(hover ? hi : base);
+    mat.color.set(highlighted ? hi : base);
     mat.emissive.copy(mat.color);
-    mat.emissiveIntensity = hover
+    mat.emissiveIntensity = highlighted
       ? this.streamMarkerHoverEmissiveIntensity
       : this.streamMarkerEmissiveIntensity;
   }
@@ -854,7 +875,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     group.lookAt(this.tmpGlobeCenter);
 
     if (isGlobeRadioPoint(d)) {
-      const rDeg = d.markerId === this.hoveredMarkerId ? hoverR : baseR;
+      const rDeg = this.radioMarkerHighlighted(d) ? hoverR : baseR;
       const rs = Math.min(30, rDeg) * pxPerDeg * this.radioMarkerRadiusScale;
       const h = Math.max(this.radioPointAltitude * globeRadius, 0.08);
       vis.scale.set(rs, rs, h);
@@ -865,7 +886,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       );
     } else {
       const alt = this.viewerCountToPointAltitude(d.viewerCount);
-      const rDeg = d.channelLogin === this.hoveredMarkerId ? hoverR : baseR;
+      const rDeg = this.streamMarkerHighlighted(d) ? hoverR : baseR;
       const rs = Math.min(30, rDeg) * pxPerDeg;
       const h = Math.max(alt * globeRadius, 0.1);
       vis.scale.set(rs, rs, h);
@@ -995,10 +1016,15 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   }
 
   private currentMarkerBaseRadius(): number {
-    // Shrink continuously as camera altitude decreases, with a hard minimum radius.
-    const altMin = 0.08;
+    // Map POV altitude from closest zoom (`minCameraAltitude`) to default zoom-out — avoids a
+    // plateau (old altMin 0.08) where radii stopped shrinking while the camera moved closer.
+    const altMin = this.minCameraAltitude;
     const altMax = this.initialGlobeAltitude;
-    const t = THREE.MathUtils.clamp((this.currentAltitude - altMin) / (altMax - altMin), 0, 1);
+    const t = THREE.MathUtils.clamp(
+      (this.currentAltitude - altMin) / Math.max(altMax - altMin, 1e-6),
+      0,
+      1,
+    );
     return this.markerRadiusMin + (this.markerRadiusMax - this.markerRadiusMin) * t;
   }
 
