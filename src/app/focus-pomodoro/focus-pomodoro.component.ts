@@ -12,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 const LS_SETTINGS = 'lucent-focus-pomodoro-settings';
 const LS_TASKS = 'lucent-focus-pomodoro-tasks';
 
-/** Max stroke length (path units) for the 270° arc — matches track `750` of `pathLength` 1000 */
+/** Max stroke length (path units) for the 270° arc — matches track dash `750` of `pathLength` 1000 */
 const ARC_UNITS = 750;
 /** Gap in dasharray so the pattern does not repeat on the circle */
 const DASH_GAP_TAIL = 2000;
@@ -78,8 +78,7 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
   });
 
   /**
-   * Shrinking arc: first dash length = fraction of 270° arc remaining (not stroke-dashoffset,
-   * which slides the pattern and looks like rotation).
+   * Shrinking arc: first dash length = fraction of the 270° ring remaining (group rotated so gap is bottom-center).
    */
   readonly arcProgressDash = computed(() => {
     const total = this.totalSeconds();
@@ -231,6 +230,8 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
     const next = !this.isRunning();
     if (next) {
       this.requestNotifyPermissionIfNeeded();
+      this.settingsOpen.set(false);
+      this.tasksOpen.set(false);
     }
     this.isRunning.set(next);
   }
@@ -289,5 +290,4 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
     this.persistTasks();
   }
 
-  readonly ringRotateDeg = 112.5;
 }

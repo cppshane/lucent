@@ -1,4 +1,11 @@
-import { ChangeDetectorRef, Component, HostBinding, OnInit, ViewChild } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  HostBinding,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { GlobeViewComponent } from './globe-view/globe-view.component';
 import type { GlobeRadioSelection } from './radio.models';
@@ -14,19 +21,35 @@ import { StreamSidebarComponent } from './stream-sidebar/stream-sidebar.componen
  */
 const FOCUS_FALLBACK_STREAM_KEYS: readonly string[] = ['yt-lA6TaaMGgDo'];
 
+/** Covers layout + WebGL churn while entering/leaving Focus mode */
+const FOCUS_MODE_TRANSITION_MS = 1100;
+const FOCUS_MODE_TRANSITION_MS_REDUCED = 280;
+
 @Component({
   selector: 'app-root',
   imports: [FocusPomodoroComponent, GlobeViewComponent, StreamSidebarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   @ViewChild(StreamSidebarComponent) private streamSidebar?: StreamSidebarComponent;
+
+  private focusTransitionClearId: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly cdr: ChangeDetectorRef,
     private readonly sanitizer: DomSanitizer,
   ) {}
+
+  ngOnDestroy(): void {
+    if (this.focusTransitionClearId !== null) {
+      clearTimeout(this.focusTransitionClearId);
+      this.focusTransitionClearId = null;
+    }
+  }
+
+  /** Full-screen veil while toggling Focus mode (hides WebGL/layout churn). */
+  focusModeTransitionOverlay = false;
 
   /** Immersive layout: corner globe + dedicated fullscreen embed (sidebar unmounted). */
   focusMode = false;
@@ -73,17 +96,54 @@ export class AppComponent implements OnInit {
   }
 
   toggleFocusMode(): void {
-    this.focusMode = !this.focusMode;
-    if (this.focusMode) {
-      this.panelCloseAnimationStarted = false;
-      if (this.selectedStream) {
-        this.sidebarInsetPx = 0;
-      }
-    } else if (this.sidebarOpen) {
-      this.sidebarInsetPx = 640;
+    if (this.focusModeTransitionOverlay) {
+      return;
     }
-    this.refreshFocusStreamEmbed();
-    this.syncUrlQueryParams();
+
+    this.focusModeTransitionOverlay = true;
+    this.cdr.detectChanges();
+
+    const runToggle = (): void => {
+      this.focusMode = !this.focusMode;
+      if (this.focusMode) {
+        this.panelCloseAnimationStarted = false;
+        if (this.selectedStream) {
+          this.sidebarInsetPx = 0;
+        }
+      } else if (this.sidebarOpen) {
+        this.sidebarInsetPx = 640;
+      }
+      this.refreshFocusStreamEmbed();
+      this.syncUrlQueryParams();
+      this.cdr.detectChanges();
+
+      const ms = this.focusTransitionDurationMs();
+      if (this.focusTransitionClearId !== null) {
+        clearTimeout(this.focusTransitionClearId);
+      }
+      this.focusTransitionClearId = setTimeout(() => {
+        this.focusModeTransitionOverlay = false;
+        this.focusTransitionClearId = null;
+        this.cdr.detectChanges();
+      }, ms);
+    };
+
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          runToggle();
+        });
+      });
+    });
+  }
+
+  private focusTransitionDurationMs(): number {
+    if (typeof matchMedia === 'undefined') {
+      return FOCUS_MODE_TRANSITION_MS;
+    }
+    return matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? FOCUS_MODE_TRANSITION_MS_REDUCED
+      : FOCUS_MODE_TRANSITION_MS;
   }
 
   onSearchToggleClick(): void {

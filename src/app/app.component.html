@@ -1,3 +1,17 @@
+@if (focusModeTransitionOverlay) {
+  <div
+    class="focus-mode-transition-overlay"
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div class="focus-mode-transition-overlay__inner">
+      <span class="focus-mode-transition-overlay__spinner" aria-hidden="true"></span>
+      <span class="focus-mode-transition-overlay__label">Loading…</span>
+    </div>
+  </div>
+}
+
 @if (!focusMode) {
   <div class="site-brand">
     <h1 class="site-title">lucent.earth</h1>
