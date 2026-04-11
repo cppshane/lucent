@@ -608,10 +608,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
-}
-
-/* Bolt on the left pulls the label visually; trailing padding centers the uppercase line in the pill */
-.focus-mode-launch--exit .focus-mode-launch__label {
+  /* Bolt on the left pulls the label; trailing padding after MODE / FOCUS centers the line in the pill */
   padding-inline-end: 0.4rem;
 }
 

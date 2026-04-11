@@ -36,6 +36,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private focusTransitionClearId: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * First focus embed after a cold load with `?focus=` in the URL — use muted autoplay so
+   * playback can start without a user gesture; cleared after the first successful embed URL.
+   */
+  private focusEmbedColdStartMutedAutoplay = false;
+
+  /** One Pomodoro "Start" reload per focus session (pause/resume must not keep reloading the iframe). */
+  private focusEmbedPomodoroAutoplayReloadUsed = false;
+
   constructor(
     private readonly cdr: ChangeDetectorRef,
     private readonly sanitizer: DomSanitizer,
@@ -105,6 +114,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
     const runToggle = (): void => {
       this.focusMode = !this.focusMode;
+      if (!this.focusMode) {
+        this.focusEmbedPomodoroAutoplayReloadUsed = false;
+      }
       if (this.focusMode) {
         this.panelCloseAnimationStarted = false;
         if (this.selectedStream) {
@@ -173,6 +185,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.initialRadioQuery = rawRadio?.trim() ? rawRadio.trim() : null;
     this.focusMode = parseFocusQueryParam(u.searchParams.get('focus'));
     if (this.focusMode) {
+      this.focusEmbedColdStartMutedAutoplay = true;
       this.panelCloseAnimationStarted = false;
       if (this.selectedStream) {
         this.sidebarInsetPx = 0;
@@ -183,6 +196,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onStreamSelected(stream: GlobeStreamPoint): void {
     this.selectedStream = stream;
+    this.focusEmbedPomodoroAutoplayReloadUsed = false;
     this.panelCloseAnimationStarted = false;
     this.sidebarInsetPx =
       this.focusMode && this.selectedStream ? 0 : 640;
@@ -216,6 +230,26 @@ export class AppComponent implements OnInit, OnDestroy {
     this.sidebarInsetPx = Math.max(0, Math.round(px));
   }
 
+  /**
+   * Pomodoro Start runs in a user gesture — reload the focus embed unmuted with a fresh URL so
+   * autoplay succeeds (cold `?focus=` loads often block iframe autoplay until activation).
+   */
+  onFocusEmbedAutoplayAfterPomodoroStart(): void {
+    if (
+      !this.focusMode ||
+      !this.selectedStream ||
+      this.focusEmbedPomodoroAutoplayReloadUsed
+    ) {
+      return;
+    }
+    this.focusEmbedPomodoroAutoplayReloadUsed = true;
+    const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin, {
+      preferMutedAutoplay: false,
+      reloadNonce: Date.now(),
+    });
+    this.focusStreamEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
+  }
+
   private refreshFocusStreamEmbed(): void {
     if (!this.focusMode) {
       this.focusStreamEmbedUrl = null;
@@ -228,7 +262,13 @@ export class AppComponent implements OnInit, OnDestroy {
       this.focusStreamEmbedUrl = null;
       return;
     }
-    const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin);
+    const preferMuted = this.focusEmbedColdStartMutedAutoplay;
+    const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin, {
+      preferMutedAutoplay: preferMuted,
+    });
+    if (this.focusEmbedColdStartMutedAutoplay) {
+      this.focusEmbedColdStartMutedAutoplay = false;
+    }
     this.focusStreamEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
   }
 

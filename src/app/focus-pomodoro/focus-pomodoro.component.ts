@@ -5,6 +5,7 @@ import {
   OnInit,
   computed,
   inject,
+  output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -31,6 +32,9 @@ export interface PomodoroTask {
 })
 export class FocusPomodoroComponent implements OnInit, OnDestroy {
   private readonly ngZone = inject(NgZone);
+
+  /** Fires when the user starts the timer — parent can reload the focus stream embed under user activation. */
+  readonly timerPlayClicked = output<void>();
 
   readonly phase = signal<'work' | 'break'>('work');
   readonly workSeconds = signal(25 * 60);
@@ -216,10 +220,17 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
     }
   }
 
-  private requestNotifyPermissionIfNeeded(): void {
+  /**
+   * Start runs in a click handler (valid user gesture). If permission is still undecided,
+   * `requestPermission()` shows the browser prompt. Already denied cannot be re-prompted.
+   */
+  private ensureNotificationPermissionWhenStarting(): void {
     if (typeof Notification === 'undefined') return;
-    if (Notification.permission !== 'default') return;
-    void Notification.requestPermission();
+    if (Notification.permission === 'granted') return;
+    if (Notification.permission === 'denied') return;
+    void Notification.requestPermission().catch(() => {
+      /* dismissed or unsupported */
+    });
   }
 
   toggleRunning(): void {
@@ -229,9 +240,10 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
     }
     const next = !this.isRunning();
     if (next) {
-      this.requestNotifyPermissionIfNeeded();
+      this.ensureNotificationPermissionWhenStarting();
       this.settingsOpen.set(false);
       this.tasksOpen.set(false);
+      this.timerPlayClicked.emit();
     }
     this.isRunning.set(next);
   }
