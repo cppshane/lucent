@@ -35,8 +35,88 @@ const FOCUS_LOFI_OPTIONS: readonly {
   { id: 'off', label: 'Off', videoId: null },
   {
     id: 'lofi-jfk',
-    label: 'lofi hip hop radio — beats to relax/study to',
+    label: 'lofi hip hop radio 📚 beats to relax/study to',
     videoId: 'jfKfPfyJRdk',
+  },
+  {
+    id: 'lofi-christmas',
+    label: 'christmas lofi music🎄cozy radio to get festive to',
+    videoId: 'XSXEaikz0Bc',
+  },
+  {
+    id: 'lofi-classical',
+    label: 'classical music radio 🎻 relaxing songs to read/study to',
+    videoId: 'jXAEIWcGXwE',
+  },
+  {
+    id: 'lofi-jazz',
+    label: 'relaxing jazz music 🌹 cozy radio to study/chill to',
+    videoId: 'A8jDx9TLMQc',
+  },
+  {
+    id: 'lofi-halloween',
+    label: 'Halloween lofi radio 🧟‍♀️ - spooky beats to get chills to',
+    videoId: '3GQY80jyysQ',
+  },
+  {
+    id: 'lofi-fireplace',
+    label: 'fireplace ambience 🔥 cozy sound to chill to',
+    videoId: 'q_4KI-ChIIs',
+  },
+  {
+    id: 'lofi-guitar',
+    label: 'chill guitar radio 🎸 music to study/relax to',
+    videoId: 'E_XmwjgRLz8',
+  },
+  {
+    id: 'lofi-sleep-ambient',
+    label: 'sleep ambient music 💤 relaxing radio to fall asleep to',
+    videoId: 'xORCbIptqcc',
+  },
+  {
+    id: 'lofi-medieval',
+    label: 'medieval lofi radio 🏰 - beats to scribe manuscripts to',
+    videoId: 'IxPANmjPaek',
+  },
+  {
+    id: 'lofi-sad',
+    label: 'sad lofi radio ☔ beats for rainy days',
+    videoId: 'P6Segk8cr-c',
+  },
+  {
+    id: 'lofi-asian',
+    label: 'asian lofi radio ⛩️ beats to relax/study to',
+    videoId: 'Na0w3Mz46GA',
+  },
+  {
+    id: 'lofi-dark-ambient',
+    label: 'dark ambient radio 🌃 music to escape/dream to',
+    videoId: 'S_MOd40zlYU',
+  },
+  {
+    id: 'lofi-sleep-chill',
+    label: 'lofi hip hop radio 💤 beats to sleep/chill to',
+    videoId: '28KRPhVzCus',
+  },
+  {
+    id: 'lofi-rain',
+    label: 'gentle rain ambience 🌧 cozy sound to chill to',
+    videoId: '-OekvEFm1lo',
+  },
+  {
+    id: 'lofi-piano',
+    label: 'peaceful piano radio 🎹 music to focus/study to',
+    videoId: 'TtkFsfOP9QI',
+  },
+  {
+    id: 'lofi-synthwave',
+    label: 'synthwave radio 🌌 beats to chill/game to',
+    videoId: '4xDzrJKXOOY',
+  },
+  {
+    id: 'lofi-sleep-chill-alt',
+    label: 'lofi hip hop radio - beats to sleep/chill to',
+    videoId: 'DWcJFNfaw9c',
   },
 ];
 
