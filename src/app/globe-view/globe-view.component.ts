@@ -578,7 +578,16 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       mat.uniforms['globeRotation'].value.set(pov.lng, pov.lat);
       globe.globeMaterial(mat);
 
-      this.applyFocusModeRendering();
+      /*
+       * Defer non-focus atmosphere / bloom / brightness to after globe.gl finishes internal setup.
+       * Synchronous apply here often leaves the default thick atmosphere limb until something
+       * (e.g. exiting Focus mode) calls applyFocusModeRendering again — same fix as focusMode
+       * changes, which already use queueMicrotask.
+       */
+      queueMicrotask(() => {
+        if (!this.alive || !this.globe) return;
+        this.applyFocusModeRendering();
+      });
 
       this.rotateTimer = setTimeout(() => {
         this.autoRotateEnabled = true;
@@ -630,6 +639,9 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
           globe.renderer().render(globe.scene(), globe.camera());
         } catch {
           /* ignore */
+        }
+        if (this.alive && this.globe) {
+          this.applyFocusModeRendering();
         }
         this.introAnimationActive = true;
         this.introAnimationStartTime = performance.now();
