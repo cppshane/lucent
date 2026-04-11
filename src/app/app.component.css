@@ -30,6 +30,14 @@
   isolation: isolate;
 }
 
+/* No stream / embed unavailable — keep full-screen black behind the timer UI */
+.focus-stream-layer__blank {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #000;
+}
+
 /* Pomodoro card + Exit button stacked, centered over the video */
 .focus-stream-layer__column {
   position: absolute;
