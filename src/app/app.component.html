@@ -77,13 +77,15 @@
 
 @if (focusMode && focusStreamEmbedUrl) {
   <div class="focus-stream-layer" aria-hidden="true">
-    <iframe
-      class="focus-stream-layer__iframe"
-      [src]="focusStreamEmbedUrl"
-      [title]="focusStreamIframeTitle"
-      allowfullscreen
-      allow="autoplay; fullscreen; picture-in-picture"
-    ></iframe>
+    <div class="focus-stream-layer__cover">
+      <iframe
+        class="focus-stream-layer__iframe"
+        [src]="focusStreamEmbedUrl"
+        [title]="focusStreamIframeTitle"
+        allowfullscreen
+        allow="autoplay; fullscreen; picture-in-picture"
+      ></iframe>
+    </div>
   </div>
 }
 

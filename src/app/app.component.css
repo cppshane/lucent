@@ -15,13 +15,37 @@
   z-index: 5;
   background: #000;
   pointer-events: auto;
+  overflow: hidden;
+}
+
+/*
+ * 16:9 embed scaled to cover the full viewport (letterboxing eliminated — excess cropped).
+ * Assumes the player content is 16:9; ultrawide / portrait viewports crop sides or top/bottom.
+ */
+.focus-stream-layer__cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
 .focus-stream-layer__iframe {
   display: block;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: 50%;
+  top: 50%;
   border: none;
+  width: 100vw;
+  height: 56.25vw;
+  min-width: 177.78vh;
+  min-height: 100vh;
+  transform: translate(-50%, -50%);
+}
+
+@supports (height: 100dvh) {
+  .focus-stream-layer__iframe {
+    min-height: 100dvh;
+    min-width: 177.78dvh;
+  }
 }
 
 .site-brand {

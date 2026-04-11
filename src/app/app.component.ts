@@ -75,6 +75,7 @@ export class AppComponent implements OnInit {
       this.sidebarInsetPx = 640;
     }
     this.refreshFocusStreamEmbed();
+    this.syncUrlQueryParams();
   }
 
   onSearchToggleClick(): void {
@@ -99,12 +100,21 @@ export class AppComponent implements OnInit {
     const rawRadio = u.searchParams.get('radio');
     this.initialStreamQuery = rawStream?.trim() ? rawStream.trim() : null;
     this.initialRadioQuery = rawRadio?.trim() ? rawRadio.trim() : null;
+    this.focusMode = parseFocusQueryParam(u.searchParams.get('focus'));
+    if (this.focusMode) {
+      this.panelCloseAnimationStarted = false;
+      if (this.selectedStream) {
+        this.sidebarInsetPx = 0;
+      }
+    }
+    queueMicrotask(() => this.refreshFocusStreamEmbed());
   }
 
   onStreamSelected(stream: GlobeStreamPoint): void {
     this.selectedStream = stream;
     this.panelCloseAnimationStarted = false;
-    this.sidebarInsetPx = 640;
+    this.sidebarInsetPx =
+      this.focusMode && this.selectedStream ? 0 : 640;
     this.refreshFocusStreamEmbed();
     this.syncUrlQueryParams();
   }
@@ -164,6 +174,25 @@ export class AppComponent implements OnInit {
     } else {
       u.searchParams.delete('radio');
     }
+    if (this.focusMode) {
+      u.searchParams.set('focus', '1');
+    } else {
+      u.searchParams.delete('focus');
+    }
     window.history.replaceState(window.history.state, '', u.toString());
   }
+}
+
+/** True for `focus`, `focus=1`, `focus=true`, `focus=` (empty), etc.; false for `0` / `false` / omit. */
+function parseFocusQueryParam(raw: string | null): boolean {
+  if (raw === null) return false;
+  const v = raw.trim().toLowerCase();
+  if (v === '' || v === '1' || v === 'true' || v === 'yes' || v === 'on') {
+    return true;
+  }
+  if (v === '0' || v === 'false' || v === 'no' || v === 'off') {
+    return false;
+  }
+  /* Unknown values (e.g. typos) default off so sharing links stays predictable */
+  return false;
 }
