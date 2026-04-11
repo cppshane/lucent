@@ -6,9 +6,45 @@
       href="https://github.com/cppshane/lucent"
       target="_blank"
       rel="noopener noreferrer"
-      >GitHub</a>
+      >GitHub</a
+    >
   </div>
 </div>
+<button
+  type="button"
+  class="stream-search-launch"
+  [class.stream-search-launch--panel-open]="searchLaunchShowsClose"
+  (click)="onSearchToggleClick()"
+  [attr.aria-label]="searchLaunchShowsClose ? 'Close panel' : 'Open stream search'"
+  [attr.title]="searchLaunchShowsClose ? 'Close' : 'Browse live streams'"
+>
+  <span class="stream-search-launch__face">
+    <span class="stream-search-launch__icons" aria-hidden="true">
+      <svg
+        class="stream-search-launch__icon stream-search-launch__icon--search"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="11" cy="11" r="6.25" />
+        <path d="M16.2 16.2 20 20" />
+      </svg>
+      <svg
+        class="stream-search-launch__icon stream-search-launch__icon--close"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      >
+        <path d="M7 7l10 10M17 7L7 17" />
+      </svg>
+    </span>
+  </span>
+</button>
 <app-globe-view
   [sidebarOpen]="sidebarOpen"
   [sidebarInsetSnap]="sidebarPanelResizing"
@@ -18,14 +54,17 @@
   [initialRadioQuery]="initialRadioQuery"
   (streamSelected)="onStreamSelected($event)"
   (radioSelected)="onRadioSelected($event)"
+  (streamsCatalogChange)="onStreamsCatalog($event)"
 />
 @if (sidebarOpen) {
   <app-stream-sidebar
     [stream]="selectedStream"
+    [allStreams]="allStreams"
     [radioSelection]="selectedRadio"
     (closing)="onSidebarClosing()"
     (closed)="onSidebarClosed()"
     (resizeActiveChange)="sidebarPanelResizing = $event"
     (layoutWidthPxChange)="onSidebarLayoutWidth($event)"
+    (streamPick)="onStreamSelected($event)"
   />
 }

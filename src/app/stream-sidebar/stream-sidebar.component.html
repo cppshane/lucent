@@ -11,52 +11,98 @@
     <div class="resize-edge" aria-hidden="true" (mousedown)="onResizeMouseDown($event)"></div>
   }
 
-  <div class="panel-scroll">
-    <div class="panel-head">
-      @if (stream) {
-        <div class="eyebrow"><span class="live-dot" aria-hidden="true"></span>live stream</div>
-      } @else {
-        <div class="eyebrow eyebrow--muted">live stream</div>
-      }
-      <button type="button" class="close" (click)="onCloseClick()" aria-label="Close">
-        <span aria-hidden="true">×</span>
-      </button>
-    </div>
+  <div class="panel-scroll panel-scroll--browse">
+    <div class="panel-chrome-spacer" aria-hidden="true"></div>
 
     @if (stream) {
-      <h2 class="title">{{ stream.title }}</h2>
-      <div class="meta-row">
-        <p class="meta">{{ stream.viewerCount | number }} watching</p>
-        <a
-          class="external"
-          [class.external--youtube]="isYoutubeStream"
-          [class.external--kick]="isKickStream"
-          [href]="stream.link"
-          target="_blank"
-          rel="noopener noreferrer"
-          >{{ openOnPlatformLabel }}</a
-        >
-      </div>
-
-      <ng-container *ngIf="safePlayerUrl; else noPlayer">
-        <div class="player-wrap">
-          <iframe
-            [src]="safePlayerUrl"
-            [title]="embedPlayerTitle"
-            allowfullscreen
-            allow="autoplay; fullscreen; picture-in-picture"
-          ></iframe>
+      <div class="stream-detail-block">
+        <h2 class="title">{{ stream.title }}</h2>
+        <div class="meta-row">
+          <p class="meta">{{ stream.viewerCount | number }} watching</p>
+          <a
+            class="external"
+            [class.external--youtube]="isYoutubeStream"
+            [class.external--kick]="isKickStream"
+            [href]="stream.link"
+            target="_blank"
+            rel="noopener noreferrer"
+            >{{ openOnPlatformLabel }}</a
+          >
         </div>
-      </ng-container>
-      <ng-template #noPlayer>
-        <p class="no-embed">Playback unavailable for this link.</p>
-      </ng-template>
 
-      <div class="section-title">channel description</div>
-      <p class="desc">{{ stream.description }}</p>
-    } @else {
-      <p class="stream-placeholder">Select a live stream marker on the globe.</p>
+        <ng-container *ngIf="safePlayerUrl; else noPlayer">
+          <div class="player-wrap">
+            <iframe
+              [src]="safePlayerUrl"
+              [title]="embedPlayerTitle"
+              allowfullscreen
+              allow="autoplay; fullscreen; picture-in-picture"
+            ></iframe>
+          </div>
+        </ng-container>
+        <ng-template #noPlayer>
+          <p class="no-embed">Playback unavailable for this link.</p>
+        </ng-template>
+
+        <div class="section-title">channel description</div>
+        <p class="desc">{{ stream.description }}</p>
+      </div>
     }
+
+    <section
+      class="stream-browse"
+      [class.stream-browse--fill]="!stream"
+      aria-label="Browse live streams"
+    >
+      <div class="stream-browse-toolbar">
+        <label class="stream-browse-label" for="stream-platform-filter">platform</label>
+        <select
+          id="stream-platform-filter"
+          class="stream-browse-select"
+          name="streamPlatformFilter"
+          [(ngModel)]="streamPlatformFilter"
+        >
+          <option value="all">All</option>
+          <option value="youtube">YouTube</option>
+          <option value="kick">Kick</option>
+          <option value="twitch">Twitch</option>
+        </select>
+        <label class="stream-browse-label" for="stream-search">search</label>
+        <input
+          id="stream-search"
+          type="search"
+          class="stream-browse-search"
+          name="streamSearch"
+          [(ngModel)]="streamSearchText"
+          placeholder="Filter by title or channel…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+      <p class="stream-browse-sort-hint">Sorted by viewers (live)</p>
+      @if (allStreams.length === 0) {
+        <p class="stream-browse-empty">Loading streams…</p>
+      } @else if (filteredBrowseStreams.length === 0) {
+        <p class="stream-browse-empty">No streams match your filters.</p>
+      } @else {
+        <ul class="stream-browse-list">
+          @for (s of filteredBrowseStreams; track s.channelLogin) {
+            <li>
+              <button
+                type="button"
+                class="stream-browse-row"
+                [class.stream-browse-row--active]="stream?.channelLogin === s.channelLogin"
+                (click)="pickStreamFromBrowse(s)"
+              >
+                <span class="stream-browse-row-platform">{{ platformLabel(s.platform) }}</span>
+                <span class="stream-browse-row-title">{{ s.title }}</span>
+                <span class="stream-browse-row-views">{{ s.viewerCount | number }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
   </div>
 
   <footer class="radio-dock" aria-label="Radio">
@@ -129,89 +175,5 @@
         }
       </div>
     }
-  </footer>
-
-  <footer class="pomodoro-dock" aria-label="Pomodoro timer">
-    <button
-      type="button"
-      class="pomodoro-toggle"
-      (click)="togglePomodoroSection()"
-      [attr.aria-expanded]="pomodoroSectionExpanded"
-      [attr.aria-controls]="pomodoroSectionExpanded ? 'pomodoro-expanded' : null"
-      id="pomodoro-toggle"
-    >
-      <span class="pomodoro-chevron" aria-hidden="true">{{
-        pomodoroSectionExpanded ? '▼' : '▸'
-      }}</span>
-      <span class="pomodoro-toggle-title">Pomodoro</span>
-      <span class="pomodoro-toggle-summary">
-        <span class="pomodoro-toggle-phase">{{ pomodoro.phaseLabel() }}</span>
-        <span class="pomodoro-toggle-time" aria-live="polite">{{ pomodoro.timeLabel() }}</span>
-      </span>
-    </button>
-
-    <div
-      class="pomodoro-bar-track"
-      [ngClass]="{
-        'pomodoro-bar-track--slim': !pomodoroSectionExpanded,
-        'pomodoro-bar-track--expanded': pomodoroSectionExpanded,
-        'pomodoro-bar-track--hidden': !pomodoro.barVisible(),
-      }"
-      aria-hidden="true"
-    >
-      <div
-        class="pomodoro-bar-fill"
-        [class.pomodoro-bar-fill--break]="pomodoro.phase() === 'short_break'"
-        [style.width.%]="pomodoro.progressPercent()"
-      ></div>
-    </div>
-
-    @if (pomodoroSectionExpanded) {
-      <div id="pomodoro-expanded" class="pomodoro-expanded" role="region" aria-labelledby="pomodoro-toggle">
-        <div class="pomodoro-display">
-          <span class="pomodoro-phase">{{ pomodoro.phaseLabel() }}</span>
-          <span class="pomodoro-time" aria-live="polite">{{ pomodoro.timeLabel() }}</span>
-        </div>
-        <div class="pomodoro-config" [class.pomodoro-config--locked]="pomodoro.configLocked()">
-          <label class="pomodoro-field">
-            <span>Focus</span>
-            <input
-              type="number"
-              name="pomWork"
-              [ngModel]="pomodoro.workMin()"
-              (ngModelChange)="pomodoro.updateWorkMin($event)"
-              [disabled]="pomodoro.configLocked()"
-              min="1"
-              max="180"
-              step="1"
-            />
-          </label>
-          <label class="pomodoro-field">
-            <span>Break</span>
-            <input
-              type="number"
-              name="pomBreak"
-              [ngModel]="pomodoro.breakMin()"
-              (ngModelChange)="pomodoro.updateBreakMin($event)"
-              [disabled]="pomodoro.configLocked()"
-              min="1"
-              max="60"
-              step="1"
-            />
-          </label>
-        </div>
-      </div>
-    }
-
-    <div class="pomodoro-actions">
-      @if (!pomodoro.running()) {
-        <button type="button" class="pomodoro-btn pomodoro-btn--primary" (click)="pomodoro.startOrResume()">
-          {{ pomodoro.phase() === 'idle' ? 'Start' : 'Resume' }}
-        </button>
-      } @else {
-        <button type="button" class="pomodoro-btn" (click)="pomodoro.pause()">Pause</button>
-      }
-      <button type="button" class="pomodoro-btn pomodoro-btn--ghost" (click)="pomodoro.reset()">Reset</button>
-    </div>
   </footer>
 </aside>

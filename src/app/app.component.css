@@ -52,3 +52,248 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/*
+ * Animated gradient border + glow — technique from css-buttons.com #142
+ * https://www.css-buttons.com/buttons/142/rainbow-color-border-glowing-animated-button
+ */
+.stream-search-launch {
+  --stream-search-surface: linear-gradient(150deg, #161b26 0%, #0a0d12 55%, #080a0e 100%);
+
+  position: absolute;
+  top: 1.65rem;
+  right: 1.65rem;
+  /* Below sidebar when closed; above panel when open (sidebar .panel is z-index 50) */
+  z-index: 25;
+  width: 3.1rem;
+  height: 3.1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: visible;
+  transition:
+    transform 0.22s cubic-bezier(0.34, 1.45, 0.64, 1),
+    filter 0.2s ease;
+}
+
+.stream-search-launch--panel-open {
+  z-index: 60;
+}
+
+.stream-search-launch:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
+}
+
+.stream-search-launch:hover:not(.stream-search-launch--panel-open) {
+  transform: scale(1.07);
+  filter: drop-shadow(0 6px 14px rgba(6, 182, 212, 0.35));
+}
+
+.stream-search-launch--panel-open:hover {
+  transform: scale(1.07);
+  filter: none;
+}
+
+.stream-search-launch:active:not(.stream-search-launch--panel-open) {
+  transform: scale(1.02);
+  filter: drop-shadow(0 2px 8px rgba(6, 182, 212, 0.25));
+}
+
+.stream-search-launch--panel-open:active {
+  transform: scale(1.02);
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-search-launch {
+    transition: none;
+  }
+
+  .stream-search-launch:hover,
+  .stream-search-launch:active {
+    transform: none;
+    filter: none;
+  }
+
+  .stream-search-launch__face,
+  .stream-search-launch__icon--search,
+  .stream-search-launch__icon--close,
+  .stream-search-launch::after {
+    transition: none;
+  }
+
+  .stream-search-launch:hover .stream-search-launch__icon--search,
+  .stream-search-launch:hover .stream-search-launch__icon--close,
+  .stream-search-launch--panel-open .stream-search-launch__icon--search,
+  .stream-search-launch--panel-open .stream-search-launch__icon--close {
+    transform: none;
+  }
+}
+
+.stream-search-launch::before,
+.stream-search-launch::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  border-radius: 50%;
+  z-index: 0;
+  transition: opacity 0.32s ease;
+  background: linear-gradient(
+    45deg,
+    #042f4a,
+    #0a4d6e,
+    #0d6b7d,
+    #0e7490,
+    #0891b2,
+    #06b6d4,
+    #22d3ee,
+    #2dd4bf,
+    #34d399,
+    #5eead4,
+    #67e8f9,
+    #38bdf8,
+    #0ea5e9,
+    #0369a1,
+    #042f4a
+  );
+  background-size: 400%;
+  animation: stream-search-gradient-flow 90s linear infinite;
+}
+
+.stream-search-launch::after {
+  filter: blur(28px);
+  transition:
+    filter 0.32s ease,
+    opacity 0.32s ease;
+}
+
+.stream-search-launch:hover:not(.stream-search-launch--panel-open)::after {
+  filter: blur(34px) brightness(1.12);
+}
+
+/* Close (X): no ring or halo — icon only */
+.stream-search-launch--panel-open::before,
+.stream-search-launch--panel-open::after {
+  opacity: 0;
+  animation: none;
+  pointer-events: none;
+}
+
+.stream-search-launch__face {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background: var(--stream-search-surface);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 3px 14px rgba(0, 0, 0, 0.5);
+  color: rgba(232, 240, 255, 0.92);
+  transition:
+    box-shadow 0.22s ease,
+    background 0.22s ease,
+    color 0.15s ease;
+}
+
+.stream-search-launch:hover:not(.stream-search-launch--panel-open) .stream-search-launch__face {
+  color: #ffffff;
+  background: linear-gradient(150deg, #1a2230 0%, #0d121a 55%, #0a0e14 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 6px 22px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(56, 189, 248, 0.22);
+}
+
+.stream-search-launch--panel-open .stream-search-launch__face {
+  background: transparent;
+  box-shadow: none;
+  color: rgba(232, 234, 237, 0.95);
+}
+
+.stream-search-launch--panel-open:hover .stream-search-launch__face {
+  color: #ffffff;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stream-search-launch__icons {
+  position: relative;
+  display: block;
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.stream-search-launch__icon {
+  position: absolute;
+  inset: 0;
+  width: 1.45rem;
+  height: 1.45rem;
+  filter: drop-shadow(0 0 8px rgba(180, 210, 255, 0.25));
+  transition:
+    opacity 0.28s ease,
+    transform 0.32s cubic-bezier(0.34, 1.35, 0.64, 1),
+    filter 0.2s ease;
+}
+
+.stream-search-launch__icon--search {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.stream-search-launch__icon--close {
+  opacity: 0;
+  transform: scale(0.35) rotate(-54deg);
+  pointer-events: none;
+}
+
+.stream-search-launch--panel-open .stream-search-launch__icon--search {
+  opacity: 0;
+  transform: scale(0.35) rotate(54deg);
+  pointer-events: none;
+}
+
+.stream-search-launch--panel-open .stream-search-launch__icon--close {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+  pointer-events: auto;
+}
+
+.stream-search-launch:hover:not(.stream-search-launch--panel-open) .stream-search-launch__icon--search {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.55));
+}
+
+.stream-search-launch--panel-open .stream-search-launch__icon--close {
+  filter: none;
+}
+
+.stream-search-launch--panel-open:hover .stream-search-launch__icon--close {
+  transform: scale(1.08);
+  filter: none;
+}
+
+@keyframes stream-search-gradient-flow {
+  0% {
+    background-position: 0 0;
+  }
+
+  50% {
+    background-position: 400% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}

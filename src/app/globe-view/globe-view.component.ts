@@ -94,6 +94,8 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
 
   @Output() streamSelected = new EventEmitter<GlobeStreamPoint>();
   @Output() radioSelected = new EventEmitter<GlobeRadioSelection>();
+  /** Current stream catalogue (refreshed with `/api/streams`) for sidebar search. */
+  @Output() streamsCatalogChange = new EventEmitter<GlobeStreamPoint[]>();
 
   @Input() sidebarOpen = false;
   /** While true, globe width follows inset immediately (sidebar drag resize). */
@@ -395,6 +397,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     if (!this.alive) return;
     this.streamPoints = this.streamDtosToPoints(rows);
     if (isInitial) this.streamsInitialFetchCompleted = true;
+    this.ngZone.run(() => this.streamsCatalogChange.emit(this.streamPoints.slice()));
     if (this.globe) {
       this.refreshMapMarkersOnGlobe();
       this.syncSelectedMapFocus();

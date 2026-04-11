@@ -12,12 +12,11 @@ import {
   ViewChild,
   inject,
 } from '@angular/core';
-import { DecimalPipe, NgClass, NgIf } from '@angular/common';
+import { DecimalPipe, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { PomodoroTimerService } from '../pomodoro-timer.service';
 import type { GlobeRadioSelection } from '../radio.models';
 import { RadioBrowserService } from '../radio-browser.service';
 import type { GlobeStreamPoint } from '../stream.models';
@@ -25,7 +24,7 @@ import type { GlobeStreamPoint } from '../stream.models';
 @Component({
   selector: 'app-stream-sidebar',
   standalone: true,
-  imports: [DecimalPipe, FormsModule, NgClass, NgIf],
+  imports: [DecimalPipe, FormsModule, NgIf],
   templateUrl: './stream-sidebar.component.html',
   styleUrl: './stream-sidebar.component.css',
 })
@@ -34,15 +33,17 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   /** Viewport max-width at which the sidebar is fixed full-width (no drag resize). */
   private static readonly mobileSidebarMaxCssPx = 768;
 
-  readonly pomodoro = inject(PomodoroTimerService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly radioBrowser = inject(RadioBrowserService);
   private readonly ngZone = inject(NgZone);
 
   @Input() stream: GlobeStreamPoint | null = null;
+  /** Catalogue from `/api/streams` (via globe) for browse/search when no globe pick. */
+  @Input() allStreams: GlobeStreamPoint[] = [];
   @Input() radioSelection: GlobeRadioSelection | null = null;
   @Output() closing = new EventEmitter<void>();
   @Output() closed = new EventEmitter<void>();
+  @Output() streamPick = new EventEmitter<GlobeStreamPoint>();
   @Output() resizeActiveChange = new EventEmitter<boolean>();
   @Output() layoutWidthPxChange = new EventEmitter<number>();
 
@@ -96,8 +97,41 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   panelOpen = false;
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  pomodoroSectionExpanded = false;
   radioSectionExpanded = false;
+
+  /** Sidebar browse: filter by API platform. */
+  streamPlatformFilter: 'all' | 'twitch' | 'youtube' | 'kick' = 'all';
+  streamSearchText = '';
+
+  get filteredBrowseStreams(): GlobeStreamPoint[] {
+    let list = this.allStreams.slice();
+    if (this.streamPlatformFilter !== 'all') {
+      const p = this.streamPlatformFilter;
+      list = list.filter((s) => (s.platform ?? 'twitch').toLowerCase() === p);
+    }
+    const q = this.streamSearchText.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          s.description.toLowerCase().includes(q) ||
+          s.channelLogin.toLowerCase().includes(q),
+      );
+    }
+    list.sort((a, b) => b.viewerCount - a.viewerCount);
+    return list;
+  }
+
+  pickStreamFromBrowse(s: GlobeStreamPoint): void {
+    this.streamPick.emit(s);
+  }
+
+  platformLabel(p: string | null | undefined): string {
+    const x = (p ?? 'twitch').toLowerCase();
+    if (x === 'youtube') return 'YouTube';
+    if (x === 'kick') return 'Kick';
+    return 'Twitch';
+  }
 
   /** Dedupe canplay + loadeddata double fire per src. */
   private radioAutoplayUrl: string | null = null;
@@ -329,10 +363,6 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
     if (!el) return;
     const w = Math.round(el.getBoundingClientRect().width);
     if (w > 0) this.layoutWidthPxChange.emit(w);
-  }
-
-  togglePomodoroSection(): void {
-    this.pomodoroSectionExpanded = !this.pomodoroSectionExpanded;
   }
 
   private setupMobileSidebarLayoutListener(): void {
