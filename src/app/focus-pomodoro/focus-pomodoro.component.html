@@ -87,6 +87,7 @@
       <button
         type="button"
         class="focus-pomodoro__btn focus-pomodoro__btn--ghost"
+        [class.focus-pomodoro__btn--active]="settingsOpen()"
         (click)="toggleSettings()"
         [attr.aria-expanded]="settingsOpen()"
         aria-label="Timer settings"
@@ -101,6 +102,7 @@
       <button
         type="button"
         class="focus-pomodoro__btn focus-pomodoro__btn--ghost"
+        [class.focus-pomodoro__btn--active]="tasksOpen()"
         (click)="toggleTasks()"
         [attr.aria-expanded]="tasksOpen()"
         aria-label="Tasks"
@@ -109,6 +111,22 @@
           <path
             fill="currentColor"
             d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="focus-pomodoro__btn focus-pomodoro__btn--ghost"
+        [class.focus-pomodoro__btn--active]="soundMenuOpen()"
+        (click)="toggleSoundMenu()"
+        [attr.aria-expanded]="soundMenuOpen()"
+        aria-label="Sound and music"
+        title="Sound and music"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
           />
         </svg>
       </button>

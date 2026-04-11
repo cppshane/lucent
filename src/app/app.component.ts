@@ -7,9 +7,14 @@ import {
   ViewChild,
 } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { firstValueFrom } from 'rxjs';
 import { GlobeViewComponent } from './globe-view/globe-view.component';
 import type { GlobeRadioSelection } from './radio.models';
-import { buildStreamEmbedUrl } from './stream-embed-url';
+import { RadioBrowserService } from './radio-browser.service';
+import {
+  buildStreamEmbedUrl,
+  buildYoutubeVideoEmbedUrl,
+} from './stream-embed-url';
 import type { GlobeStreamPoint } from './stream.models';
 import { FocusPomodoroComponent } from './focus-pomodoro/focus-pomodoro.component';
 import { StreamSidebarComponent } from './stream-sidebar/stream-sidebar.component';
@@ -20,6 +25,20 @@ import { StreamSidebarComponent } from './stream-sidebar/stream-sidebar.componen
  * Keys match `GlobeStreamPoint.channelLogin` (e.g. `yt-{videoId}` for YouTube).
  */
 const FOCUS_FALLBACK_STREAM_KEYS: readonly string[] = ['yt-lA6TaaMGgDo'];
+
+/** Lo-fi ambient streams (YouTube embeds, bottom-left dock in Focus mode). */
+const FOCUS_LOFI_OPTIONS: readonly {
+  id: string;
+  label: string;
+  videoId: string | null;
+}[] = [
+  { id: 'off', label: 'Off', videoId: null },
+  {
+    id: 'lofi-jfk',
+    label: 'lofi hip hop radio — beats to relax/study to',
+    videoId: 'jfKfPfyJRdk',
+  },
+];
 
 /** Covers layout + WebGL churn while entering/leaving Focus mode */
 const FOCUS_MODE_TRANSITION_MS = 1100;
@@ -48,7 +67,28 @@ export class AppComponent implements OnInit, OnDestroy {
   constructor(
     private readonly cdr: ChangeDetectorRef,
     private readonly sanitizer: DomSanitizer,
+    private readonly radioBrowser: RadioBrowserService,
   ) {}
+
+  /** Main focus stream: audio off by default (embed muted until user enables). */
+  focusStreamAudioOn = false;
+
+  /** Internet radio URL for the Focus pane (sidebar is unmounted while stream + focus). */
+  focusRadioPlayUrl: string | null = null;
+  focusRadioResolveFailed = false;
+  focusRadioResolving = false;
+
+  readonly focusLofiOptions = FOCUS_LOFI_OPTIONS;
+  focusLofiSelectionId = 'off';
+  focusLofiEmbedUrl: SafeResourceUrl | null = null;
+  /**
+   * YouTube embed starts muted (reliable autoplay); user must click once so we can set
+   * `iframe.src` with mute=0 in the same user gesture (Angular’s async bind loses activation).
+   */
+  focusLofiSoundGateVisible = false;
+
+  /** Sound / music panel next to Pomodoro (toggle via music button). */
+  focusSoundMenuVisible = false;
 
   ngOnDestroy(): void {
     if (this.focusTransitionClearId !== null) {
@@ -116,12 +156,21 @@ export class AppComponent implements OnInit, OnDestroy {
       this.focusMode = !this.focusMode;
       if (!this.focusMode) {
         this.focusEmbedPomodoroAutoplayReloadUsed = false;
+        this.focusLofiEmbedUrl = null;
+        this.focusLofiSoundGateVisible = false;
+        this.focusSoundMenuVisible = false;
+        this.focusRadioPlayUrl = null;
+        this.focusRadioResolveFailed = false;
+        this.focusRadioResolving = false;
       }
       if (this.focusMode) {
         this.panelCloseAnimationStarted = false;
         if (this.selectedStream) {
           this.sidebarInsetPx = 0;
         }
+        this.maybeDefaultLofiWhenNoRadio();
+        void this.syncFocusRadioAudioForFocusMode();
+        this.reapplyFocusLofiEmbedIfNeeded();
       } else if (this.sidebarOpen) {
         this.sidebarInsetPx = 640;
       }
@@ -191,7 +240,32 @@ export class AppComponent implements OnInit, OnDestroy {
         this.sidebarInsetPx = 0;
       }
     }
-    queueMicrotask(() => this.refreshFocusStreamEmbed());
+    queueMicrotask(() => {
+      this.refreshFocusStreamEmbed();
+      if (this.focusMode) {
+        this.maybeDefaultLofiWhenNoRadio();
+        void this.syncFocusRadioAudioForFocusMode();
+        this.reapplyFocusLofiEmbedIfNeeded();
+      }
+    });
+  }
+
+  toggleFocusSoundMenu(): void {
+    this.focusSoundMenuVisible = !this.focusSoundMenuVisible;
+  }
+
+  onSoundMenuCloseFromPomodoro(): void {
+    this.focusSoundMenuVisible = false;
+  }
+
+  /** With no radio, start Lo-fi beats automatically (user can turn off in the menu). */
+  private maybeDefaultLofiWhenNoRadio(): void {
+    if (this.selectedRadio) {
+      return;
+    }
+    if (this.focusLofiSelectionId === 'off') {
+      this.focusLofiSelectionId = 'lofi-jfk';
+    }
   }
 
   onStreamSelected(stream: GlobeStreamPoint): void {
@@ -208,6 +282,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.selectedRadio = sel;
     this.panelCloseAnimationStarted = false;
     this.sidebarInsetPx = 640;
+    if (this.focusMode) {
+      void this.syncFocusRadioAudioForFocusMode();
+    }
     this.syncUrlQueryParams();
   }
 
@@ -245,9 +322,103 @@ export class AppComponent implements OnInit, OnDestroy {
     this.focusEmbedPomodoroAutoplayReloadUsed = true;
     const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin, {
       preferMutedAutoplay: false,
+      streamAudioOn: this.focusStreamAudioOn,
       reloadNonce: Date.now(),
     });
     this.focusStreamEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
+  }
+
+  toggleFocusStreamAudio(): void {
+    this.focusStreamAudioOn = !this.focusStreamAudioOn;
+    if (!this.focusMode || !this.selectedStream) {
+      return;
+    }
+    const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin, {
+      preferMutedAutoplay: false,
+      streamAudioOn: this.focusStreamAudioOn,
+      reloadNonce: Date.now(),
+    });
+    this.focusStreamEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
+  }
+
+  onFocusLofiChange(ev: Event): void {
+    const id = (ev.target as HTMLSelectElement).value;
+    this.focusLofiSelectionId = id;
+    this.reapplyFocusLofiEmbedIfNeeded();
+  }
+
+  private reapplyFocusLofiEmbedIfNeeded(): void {
+    if (!this.focusMode) {
+      this.focusLofiEmbedUrl = null;
+      this.focusLofiSoundGateVisible = false;
+      return;
+    }
+    const opt = FOCUS_LOFI_OPTIONS.find((o) => o.id === this.focusLofiSelectionId);
+    const vid = opt?.videoId;
+    if (!vid) {
+      this.focusLofiEmbedUrl = null;
+      this.focusLofiSoundGateVisible = false;
+      return;
+    }
+    const raw = buildYoutubeVideoEmbedUrl(vid, {
+      muted: true,
+      reloadNonce: Date.now(),
+    });
+    this.focusLofiEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
+    this.focusLofiSoundGateVisible = true;
+  }
+
+  /**
+   * Must run directly from a click — assigns iframe.src so unmute is tied to user activation.
+   */
+  unlockFocusLofiSound(iframe: HTMLIFrameElement): void {
+    const opt = FOCUS_LOFI_OPTIONS.find((o) => o.id === this.focusLofiSelectionId);
+    const vid = opt?.videoId;
+    if (!vid) {
+      return;
+    }
+    const raw = buildYoutubeVideoEmbedUrl(vid, {
+      muted: false,
+      reloadNonce: Date.now(),
+    });
+    iframe.src = raw;
+    this.focusLofiEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
+    this.focusLofiSoundGateVisible = false;
+  }
+
+  private async syncFocusRadioAudioForFocusMode(): Promise<void> {
+    if (!this.focusMode || !this.selectedRadio) {
+      this.focusRadioPlayUrl = null;
+      this.focusRadioResolveFailed = false;
+      this.focusRadioResolving = false;
+      this.cdr.markForCheck();
+      return;
+    }
+    if (this.selectedRadio.playUrl) {
+      this.focusRadioPlayUrl = this.selectedRadio.playUrl;
+      this.focusRadioResolveFailed = false;
+      this.focusRadioResolving = false;
+      this.cdr.markForCheck();
+      return;
+    }
+    this.focusRadioResolving = true;
+    this.focusRadioResolveFailed = false;
+    this.cdr.markForCheck();
+    try {
+      const url = await firstValueFrom(
+        this.radioBrowser.notifyStationClick(
+          this.selectedRadio.station.stationuuid,
+        ),
+      );
+      this.focusRadioPlayUrl = url;
+      this.focusRadioResolveFailed = !url;
+    } catch {
+      this.focusRadioPlayUrl = null;
+      this.focusRadioResolveFailed = true;
+    } finally {
+      this.focusRadioResolving = false;
+      this.cdr.markForCheck();
+    }
   }
 
   private refreshFocusStreamEmbed(): void {
@@ -265,6 +436,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const preferMuted = this.focusEmbedColdStartMutedAutoplay;
     const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin, {
       preferMutedAutoplay: preferMuted,
+      streamAudioOn: this.focusStreamAudioOn,
     });
     if (this.focusEmbedColdStartMutedAutoplay) {
       this.focusEmbedColdStartMutedAutoplay = false;

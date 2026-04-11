@@ -106,7 +106,68 @@
     <div class="focus-stream-layer__column">
       <div class="focus-stream-layer__stack">
         <div class="focus-stream-layer__pane">
-          <app-focus-pomodoro (timerPlayClicked)="onFocusEmbedAutoplayAfterPomodoroStart()" />
+          <app-focus-pomodoro
+            [soundMenuOpen]="focusSoundMenuVisible"
+            (timerPlayClicked)="onFocusEmbedAutoplayAfterPomodoroStart()"
+            (soundMenuToggle)="toggleFocusSoundMenu()"
+            (soundMenuCloseRequest)="onSoundMenuCloseFromPomodoro()"
+          />
+
+          @if (focusSoundMenuVisible) {
+            <section
+              class="focus-pane-sound focus-pane-sound--panel"
+              role="region"
+              aria-label="Sound and ambient audio"
+            >
+              <h3 class="focus-pane-sound__eyebrow">Sound</h3>
+              <label class="focus-pane-sound__field focus-pane-sound__field--row">
+                <input
+                  type="checkbox"
+                  [checked]="focusStreamAudioOn"
+                  (change)="toggleFocusStreamAudio()"
+                />
+                <span>Stream audio</span>
+              </label>
+              <p class="focus-pane-sound__hint">
+                Off by default — turn on to hear the main stream (may reload the player).
+              </p>
+
+              @if (selectedRadio) {
+                <div class="focus-pane-sound__block" role="region" aria-label="Radio">
+                  <span class="focus-pane-sound__label">Radio</span>
+                  <p class="focus-pane-sound__title">{{ selectedRadio.station.name }}</p>
+                  @if (focusRadioResolving) {
+                    <p class="focus-pane-sound__status">Resolving stream…</p>
+                  } @else if (focusRadioPlayUrl) {
+                    <audio
+                      class="focus-pane-sound__radio-audio"
+                      [src]="focusRadioPlayUrl"
+                      controls
+                      playsinline
+                      preload="metadata"
+                      controlsList="nodownload"
+                    ></audio>
+                  } @else if (focusRadioResolveFailed) {
+                    <p class="focus-pane-sound__status">Could not load this station.</p>
+                  }
+                </div>
+              }
+
+              <label class="focus-pane-sound__field">
+                <span>Lo-fi beats</span>
+                <select
+                  class="focus-pane-sound__input"
+                  (change)="onFocusLofiChange($event)"
+                >
+                  @for (opt of focusLofiOptions; track opt.id) {
+                    <option [value]="opt.id" [selected]="opt.id === focusLofiSelectionId">
+                      {{ opt.label }}
+                    </option>
+                  }
+                </select>
+              </label>
+            </section>
+          }
         </div>
       </div>
       <button
@@ -131,6 +192,33 @@
         </span>
       </button>
     </div>
+  </div>
+}
+
+@if (focusMode && focusLofiEmbedUrl) {
+  <div class="focus-lofi-dock" aria-label="Lo-fi ambient player">
+    <iframe
+      #lofiEmbed
+      class="focus-lofi-dock__iframe"
+      [src]="focusLofiEmbedUrl"
+      title="Lo-fi ambient music"
+      allowfullscreen
+      allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+    ></iframe>
+    @if (focusLofiSoundGateVisible) {
+      <div class="focus-lofi-dock__gate" role="presentation">
+        <button
+          type="button"
+          class="focus-lofi-dock__sound-btn"
+          (click)="unlockFocusLofiSound(lofiEmbed)"
+        >
+          Enable sound
+        </button>
+        <p class="focus-lofi-dock__gate-hint">
+          Browsers block autoplay with audio from a menu alone — one click enables volume.
+        </p>
+      </div>
+    }
   </div>
 }
 

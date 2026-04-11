@@ -5,6 +5,7 @@ import {
   OnInit,
   computed,
   inject,
+  input,
   output,
   signal,
 } from '@angular/core';
@@ -35,6 +36,12 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
 
   /** Fires when the user starts the timer — parent can reload the focus stream embed under user activation. */
   readonly timerPlayClicked = output<void>();
+
+  /** Parent-driven: Focus mode sound / music panel visibility. */
+  readonly soundMenuOpen = input<boolean>(false);
+  readonly soundMenuToggle = output<void>();
+  /** Parent should hide sound panel when settings or tasks open. */
+  readonly soundMenuCloseRequest = output<void>();
 
   readonly phase = signal<'work' | 'break'>('work');
   readonly workSeconds = signal(25 * 60);
@@ -267,19 +274,29 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
     this.settingsOpen.set(false);
   }
 
+  toggleSoundMenu(): void {
+    this.settingsOpen.set(false);
+    this.tasksOpen.set(false);
+    this.soundMenuToggle.emit();
+  }
+
   toggleSettings(): void {
     const next = !this.settingsOpen();
     if (next) {
       this.draftWorkMin = this.workSeconds() / 60;
       this.draftBreakMin = this.breakSeconds() / 60;
       this.tasksOpen.set(false);
+      this.soundMenuCloseRequest.emit();
     }
     this.settingsOpen.set(next);
   }
 
   toggleTasks(): void {
     const next = !this.tasksOpen();
-    if (next) this.settingsOpen.set(false);
+    if (next) {
+      this.settingsOpen.set(false);
+      this.soundMenuCloseRequest.emit();
+    }
     this.tasksOpen.set(next);
   }
 
