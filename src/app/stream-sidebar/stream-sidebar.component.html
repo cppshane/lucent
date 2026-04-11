@@ -62,7 +62,7 @@
   <footer
     class="stream-search-dock"
     [class.stream-search-dock--collapsed]="!streamSearchSectionExpanded"
-    aria-label="Stream search"
+    aria-label="Streams"
   >
     <button
       type="button"
@@ -82,43 +82,17 @@
     @if (streamSearchSectionExpanded) {
       <div id="stream-search-expanded" class="stream-search-expanded" role="region" aria-labelledby="stream-search-toggle">
         <div class="stream-search-dock-inner">
-          <div class="stream-browse-toolbar">
-            <label class="stream-browse-label" for="stream-platform-filter">platform</label>
-            <select
-              id="stream-platform-filter"
-              class="stream-browse-select"
-              name="streamPlatformFilter"
-              [(ngModel)]="streamPlatformFilter"
-            >
-              <option value="all">All</option>
-              <option value="youtube">YouTube</option>
-              <option value="kick">Kick</option>
-              <option value="twitch">Twitch</option>
-            </select>
-            <label class="stream-browse-label" for="stream-search">search</label>
-            <input
-              id="stream-search"
-              type="search"
-              class="stream-browse-search"
-              name="streamSearch"
-              [(ngModel)]="streamSearchText"
-              placeholder="Filter by title or channel…"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
           @if (allStreams.length === 0) {
             <p class="stream-browse-empty">Loading streams…</p>
-          } @else if (filteredBrowseStreams.length === 0) {
-            <p class="stream-browse-empty">No streams match your filters.</p>
           } @else {
             <ul class="stream-browse-list">
-              @for (s of filteredBrowseStreams; track s.channelLogin) {
+              @for (s of sortedBrowseStreams; track s.channelLogin) {
                 <li>
                   <button
                     type="button"
                     class="stream-browse-card"
-                    [class.stream-browse-card--active]="stream?.channelLogin === s.channelLogin"
+                    [class.stream-browse-card--active]="isActiveBrowseCard(s)"
+                    [attr.data-active-platform]="isActiveBrowseCard(s) ? browsePlatformKey(s) : null"
                     (click)="pickStreamFromBrowse(s)"
                   >
                     <div class="stream-browse-card-media">

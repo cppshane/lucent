@@ -13,7 +13,6 @@ import {
   inject,
 } from '@angular/core';
 import { DecimalPipe, NgIf } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -24,7 +23,7 @@ import type { GlobeStreamPoint } from '../stream.models';
 @Component({
   selector: 'app-stream-sidebar',
   standalone: true,
-  imports: [DecimalPipe, FormsModule, NgIf],
+  imports: [DecimalPipe, NgIf],
   templateUrl: './stream-sidebar.component.html',
   styleUrl: './stream-sidebar.component.css',
 })
@@ -38,7 +37,7 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   private readonly ngZone = inject(NgZone);
 
   @Input() stream: GlobeStreamPoint | null = null;
-  /** Catalogue from `/api/streams` (via globe) for browse/search when no globe pick. */
+  /** Catalogue from `/api/streams` (via globe) for browse when no globe pick. */
   @Input() allStreams: GlobeStreamPoint[] = [];
   @Input() radioSelection: GlobeRadioSelection | null = null;
   @Output() closing = new EventEmitter<void>();
@@ -78,7 +77,7 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   get streamSearchDockSummary(): string {
-    const n = this.filteredBrowseStreams.length;
+    const n = this.sortedBrowseStreams.length;
     if (this.allStreams.length === 0) return 'Loading…';
     return n === 1 ? '1 stream' : `${n} streams`;
   }
@@ -108,31 +107,24 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   /** Stream search dock — open by default (unlike Radio). */
   streamSearchSectionExpanded = true;
 
-  /** Sidebar browse: filter by API platform. */
-  streamPlatformFilter: 'all' | 'twitch' | 'youtube' | 'kick' = 'all';
-  streamSearchText = '';
-
-  get filteredBrowseStreams(): GlobeStreamPoint[] {
-    let list = this.allStreams.slice();
-    if (this.streamPlatformFilter !== 'all') {
-      const p = this.streamPlatformFilter;
-      list = list.filter((s) => (s.platform ?? 'twitch').toLowerCase() === p);
-    }
-    const q = this.streamSearchText.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.description.toLowerCase().includes(q) ||
-          s.channelLogin.toLowerCase().includes(q),
-      );
-    }
-    list.sort((a, b) => b.viewerCount - a.viewerCount);
-    return list;
+  /** Browse list: all catalogue streams, sorted by viewers (highest first). */
+  get sortedBrowseStreams(): GlobeStreamPoint[] {
+    return this.allStreams.slice().sort((a, b) => b.viewerCount - a.viewerCount);
   }
 
   pickStreamFromBrowse(s: GlobeStreamPoint): void {
     this.streamPick.emit(s);
+  }
+
+  isActiveBrowseCard(s: GlobeStreamPoint): boolean {
+    return this.stream?.channelLogin === s.channelLogin;
+  }
+
+  browsePlatformKey(s: GlobeStreamPoint): 'twitch' | 'youtube' | 'kick' {
+    const p = (s.platform ?? 'twitch').toLowerCase();
+    if (p === 'youtube') return 'youtube';
+    if (p === 'kick') return 'kick';
+    return 'twitch';
   }
 
   /** Dedupe canplay + loadeddata double fire per src. */
