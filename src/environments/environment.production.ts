@@ -1,5 +1,9 @@
 export const environment = {
   production: true,
+  /**
+   * GA4 web stream: Lucent — https://lucent.earth (Stream ID 14352370694).
+   */
+  googleAnalyticsMeasurementId: 'G-CJJXL1TLPM',
   /** Same origin as the SPA on https://lucent.earth */
   streamsUrl: '/api/streams',
   /**

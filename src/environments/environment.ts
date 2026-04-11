@@ -1,5 +1,7 @@
 export const environment = {
   production: false,
+  /** Empty in dev so local runs do not send hits. Production sets G-CJJXL1TLPM. */
+  googleAnalyticsMeasurementId: '',
   /**
    * `/api/streams` — dev: proxied to LucentApi (`proxy.conf.json`); prod: same path on lucent.earth.
    * `production` flag comes from `environment.production.ts` in prod builds.
