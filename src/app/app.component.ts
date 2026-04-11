@@ -4,11 +4,19 @@ import { GlobeViewComponent } from './globe-view/globe-view.component';
 import type { GlobeRadioSelection } from './radio.models';
 import { buildStreamEmbedUrl } from './stream-embed-url';
 import type { GlobeStreamPoint } from './stream.models';
+import { FocusPomodoroComponent } from './focus-pomodoro/focus-pomodoro.component';
 import { StreamSidebarComponent } from './stream-sidebar/stream-sidebar.component';
+
+/**
+ * When Focus mode is on but no stream is selected, the first `channelLogin` in this list that
+ * exists in the live catalog is auto-selected. Order matters: Shinjuku (manual EarthCam Tokyo).
+ * Keys match `GlobeStreamPoint.channelLogin` (e.g. `yt-{videoId}` for YouTube).
+ */
+const FOCUS_FALLBACK_STREAM_KEYS: readonly string[] = ['yt-lA6TaaMGgDo'];
 
 @Component({
   selector: 'app-root',
-  imports: [GlobeViewComponent, StreamSidebarComponent],
+  imports: [FocusPomodoroComponent, GlobeViewComponent, StreamSidebarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -91,6 +99,9 @@ export class AppComponent implements OnInit {
 
   onStreamsCatalog(streams: GlobeStreamPoint[]): void {
     this.allStreams = streams;
+    if (this.focusMode && !this.selectedStream) {
+      this.refreshFocusStreamEmbed();
+    }
   }
 
   ngOnInit(): void {
@@ -146,12 +157,36 @@ export class AppComponent implements OnInit {
   }
 
   private refreshFocusStreamEmbed(): void {
-    if (!this.focusMode || !this.selectedStream) {
+    if (!this.focusMode) {
+      this.focusStreamEmbedUrl = null;
+      return;
+    }
+    if (!this.selectedStream) {
+      this.applyFocusFallbackStreamIfNeeded();
+    }
+    if (!this.selectedStream) {
       this.focusStreamEmbedUrl = null;
       return;
     }
     const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin);
     this.focusStreamEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
+  }
+
+  /** Picks first matching catalog stream from {@link FOCUS_FALLBACK_STREAM_KEYS} (see Shinjuku first). */
+  private applyFocusFallbackStreamIfNeeded(): void {
+    if (this.selectedStream || this.allStreams.length === 0) {
+      return;
+    }
+    for (const key of FOCUS_FALLBACK_STREAM_KEYS) {
+      const want = key.toLowerCase();
+      const hit = this.allStreams.find(
+        (s) => s.channelLogin.toLowerCase() === want,
+      );
+      if (hit) {
+        this.onStreamSelected(hit);
+        return;
+      }
+    }
   }
 
   get focusStreamIframeTitle(): string {

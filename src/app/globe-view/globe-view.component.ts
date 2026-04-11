@@ -1214,8 +1214,8 @@ function geojsonToBorderPaths(features: GeoFeature[]): BorderPath[] {
     const pnts = coords.map(([lng, lat]) => [lat, lng] as [number, number]);
     // Base crisp border line + multi-pass outer glow to fake a soft gradient.
     paths.push({ pnts, style: 'base' });
-    // Single soft halo (was two passes — fewer line draws per frame)
     paths.push({ pnts, style: 'glow1' });
+    paths.push({ pnts, style: 'glow2' });
   }
 
   for (const f of features) {

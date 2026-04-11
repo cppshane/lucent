@@ -1,0 +1,336 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.focus-pomodoro {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.focus-pomodoro__inner {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.focus-pomodoro__task {
+  margin: 0 0 0.35rem;
+  padding: 0 0.75rem;
+  max-width: 100%;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  color: rgba(226, 232, 240, 0.95);
+}
+
+.focus-pomodoro__phase {
+  margin: 0 0 0.5rem;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.focus-pomodoro__ring-box {
+  position: relative;
+  width: 100%;
+  max-width: 17.5rem;
+  margin: 0 auto;
+}
+
+.focus-pomodoro__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 4px 28px rgba(14, 165, 233, 0.12));
+}
+
+.focus-pomodoro__track {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.focus-pomodoro__arc {
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.focus-pomodoro__time-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.focus-pomodoro__time {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: clamp(2.5rem, 9vmin, 3.75rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: rgba(248, 250, 252, 0.98);
+  text-shadow:
+    0 0 48px rgba(14, 165, 233, 0.12),
+    0 2px 20px rgba(0, 0, 0, 0.4);
+  line-height: 1;
+}
+
+.focus-pomodoro__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.focus-pomodoro__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(6, 10, 18, 0.55);
+  color: rgba(248, 250, 252, 0.92);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.focus-pomodoro__btn:hover {
+  background: rgba(22, 28, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.focus-pomodoro__btn:active {
+  transform: scale(0.96);
+}
+
+.focus-pomodoro__btn:focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.65);
+  outline-offset: 2px;
+}
+
+.focus-pomodoro__btn--ghost {
+  opacity: 0.85;
+}
+
+.focus-pomodoro__panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 0.65rem;
+  background: rgba(4, 8, 14, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.focus-pomodoro__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.78rem;
+  color: rgba(203, 213, 225, 0.9);
+}
+
+.focus-pomodoro__field span {
+  letter-spacing: 0.02em;
+}
+
+.focus-pomodoro__field input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f1f5f9;
+  font-size: 0.9rem;
+}
+
+.focus-pomodoro__field input[type='number'],
+.focus-pomodoro__cycles-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.focus-pomodoro__field input[type='number']::-webkit-outer-spin-button,
+.focus-pomodoro__field input[type='number']::-webkit-inner-spin-button,
+.focus-pomodoro__cycles-input::-webkit-outer-spin-button,
+.focus-pomodoro__cycles-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.focus-pomodoro__apply {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 0.45rem;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.35), rgba(52, 211, 153, 0.3));
+  color: #f8fafc;
+}
+
+.focus-pomodoro__apply:hover {
+  filter: brightness(1.08);
+}
+
+.focus-pomodoro__task-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.focus-pomodoro__task-add input[type='text'] {
+  flex: 1 1 6rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f1f5f9;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+.focus-pomodoro__cycles-input {
+  flex-shrink: 0;
+  width: 3.25rem;
+  padding: 0.45rem 0.35rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f1f5f9;
+  font-size: 0.85rem;
+}
+
+.focus-pomodoro__add-btn {
+  flex-shrink: 0;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.12);
+  color: #ecfdf5;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.focus-pomodoro__task-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 10rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.focus-pomodoro__task-list::-webkit-scrollbar {
+  display: none;
+}
+
+.focus-pomodoro__task-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.82rem;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.focus-pomodoro__task-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-pomodoro__task-meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.focus-pomodoro__remove {
+  flex-shrink: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.3rem;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fecaca;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.focus-pomodoro__task-empty {
+  padding: 0.5rem 0;
+  font-size: 0.82rem;
+  color: rgba(148, 163, 184, 0.75);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-pomodoro__arc {
+    transition: none;
+  }
+}

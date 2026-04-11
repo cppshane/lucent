@@ -1,0 +1,193 @@
+<div class="focus-pomodoro" role="region" aria-label="Pomodoro focus timer">
+  <div class="focus-pomodoro__inner">
+    @if (taskLine(); as line) {
+      <p class="focus-pomodoro__task">{{ line }}</p>
+    }
+    <p class="focus-pomodoro__phase">
+      {{ phase() === 'work' ? 'Focus' : 'Break' }}
+    </p>
+
+    <div class="focus-pomodoro__ring-box">
+      <svg
+        class="focus-pomodoro__svg"
+        viewBox="0 0 256 256"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient
+            [attr.id]="gradientId"
+            x1="0%"
+            y1="100%"
+            x2="100%"
+            y2="0%"
+          >
+            <stop offset="0%" stop-color="#0ea5e9" />
+            <stop offset="55%" stop-color="#14b8a6" />
+            <stop offset="100%" stop-color="#34d399" />
+          </linearGradient>
+        </defs>
+        <g [attr.transform]="'rotate(' + ringRotateDeg + ' 128 128)'">
+          <circle
+            class="focus-pomodoro__track"
+            cx="128"
+            cy="128"
+            r="90"
+            fill="none"
+            pathLength="1000"
+            stroke-dasharray="750 250"
+          />
+          <circle
+            class="focus-pomodoro__arc"
+            cx="128"
+            cy="128"
+            r="90"
+            fill="none"
+            pathLength="1000"
+            [attr.stroke-dasharray]="arcProgressDash()"
+            [attr.stroke]="'url(#' + gradientId + ')'"
+          />
+        </g>
+      </svg>
+      <div class="focus-pomodoro__time-wrap">
+        <span class="focus-pomodoro__time">{{ timeDisplay() }}</span>
+      </div>
+    </div>
+
+    <div class="focus-pomodoro__controls">
+      <button
+        type="button"
+        class="focus-pomodoro__btn"
+        (click)="toggleRunning()"
+        [attr.aria-label]="isRunning() ? 'Pause timer' : 'Start timer'"
+      >
+        @if (isRunning()) {
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" />
+            <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" />
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M9 6.5v11l9-5.5z" fill="currentColor" />
+          </svg>
+        }
+      </button>
+      <button
+        type="button"
+        class="focus-pomodoro__btn focus-pomodoro__btn--ghost"
+        (click)="resetPhase()"
+        aria-label="Reset timer"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="focus-pomodoro__btn focus-pomodoro__btn--ghost"
+        (click)="toggleSettings()"
+        [attr.aria-expanded]="settingsOpen()"
+        aria-label="Timer settings"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.52-.4-1.08-.73-1.69-.98l-.36-2.54a.484.484 0 0 0-.48-.42h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.61.25-1.17.59-1.69.98l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.52.4 1.08.73 1.69.98l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.61-.25 1.17-.59 1.69-.98l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="focus-pomodoro__btn focus-pomodoro__btn--ghost"
+        (click)="toggleTasks()"
+        [attr.aria-expanded]="tasksOpen()"
+        aria-label="Tasks"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+          />
+        </svg>
+      </button>
+    </div>
+
+    @if (settingsOpen()) {
+      <div class="focus-pomodoro__panel" role="region" aria-label="Timer settings">
+        <label class="focus-pomodoro__field">
+          <span>Focus length (minutes)</span>
+          <input
+            type="number"
+            name="draftWork"
+            min="1"
+            max="180"
+            [(ngModel)]="draftWorkMin"
+          />
+        </label>
+        <label class="focus-pomodoro__field">
+          <span>Break length (minutes)</span>
+          <input
+            type="number"
+            name="draftBreak"
+            min="0"
+            max="60"
+            [(ngModel)]="draftBreakMin"
+          />
+        </label>
+        <button
+          type="button"
+          class="focus-pomodoro__apply"
+          (click)="applySettings()"
+        >
+          Apply
+        </button>
+      </div>
+    }
+
+    @if (tasksOpen()) {
+      <div class="focus-pomodoro__panel" role="region" aria-label="Task list">
+        <div class="focus-pomodoro__task-add">
+          <input
+            type="text"
+            name="newTaskTitle"
+            placeholder="Task name"
+            [(ngModel)]="newTaskTitle"
+            (keydown.enter)="addTask()"
+          />
+          <input
+            type="number"
+            name="newTaskCycles"
+            min="1"
+            max="99"
+            class="focus-pomodoro__cycles-input"
+            [(ngModel)]="newTaskCycles"
+            title="Estimated pomodoro cycles"
+          />
+          <button type="button" class="focus-pomodoro__add-btn" (click)="addTask()">
+            Add
+          </button>
+        </div>
+        <ul class="focus-pomodoro__task-list">
+          @for (t of tasks(); track t.id) {
+            <li class="focus-pomodoro__task-row">
+              <span class="focus-pomodoro__task-title">{{ t.title }}</span>
+              <span class="focus-pomodoro__task-meta">{{ t.cycles }}×</span>
+              <button
+                type="button"
+                class="focus-pomodoro__remove"
+                (click)="removeTask(t.id)"
+                [attr.aria-label]="'Remove ' + t.title"
+              >
+                ×
+              </button>
+            </li>
+          } @empty {
+            <li class="focus-pomodoro__task-empty">No tasks yet</li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+</div>

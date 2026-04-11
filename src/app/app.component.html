@@ -50,41 +50,72 @@
   </button>
 }
 
-<button
-  type="button"
-  class="focus-mode-launch"
-  [class.focus-mode-launch--exit]="focusMode"
-  (click)="toggleFocusMode()"
-  [attr.aria-label]="focusMode ? 'Exit Focus mode' : 'Enter Focus mode'"
-  [attr.title]="focusMode ? 'Exit Focus mode' : 'Focus mode — fullscreen stream with corner globe'"
->
-  <span class="focus-mode-launch__face">
-    <svg
-      class="focus-mode-launch__bolt"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"
-      />
-    </svg>
-    <span class="focus-mode-launch__label">{{
-      focusMode ? 'Exit focus' : 'Focus Mode'
-    }}</span>
-  </span>
-</button>
+@if (!focusMode || !focusStreamEmbedUrl) {
+  <button
+    type="button"
+    class="focus-mode-launch"
+    [class.focus-mode-launch--exit]="focusMode"
+    (click)="toggleFocusMode()"
+    [attr.aria-label]="focusMode ? 'Exit Focus mode' : 'Enter Focus mode'"
+    [attr.title]="focusMode ? 'Exit Focus mode' : 'Focus mode — fullscreen stream with corner globe'"
+  >
+    <span class="focus-mode-launch__face">
+      <svg
+        class="focus-mode-launch__bolt"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"
+        />
+      </svg>
+      <span class="focus-mode-launch__label">{{
+        focusMode ? 'Exit focus' : 'Focus Mode'
+      }}</span>
+    </span>
+  </button>
+}
 
 @if (focusMode && focusStreamEmbedUrl) {
-  <div class="focus-stream-layer" aria-hidden="true">
-    <div class="focus-stream-layer__cover">
+  <div class="focus-stream-layer">
+    <div class="focus-stream-layer__cover" inert aria-hidden="true">
       <iframe
         class="focus-stream-layer__iframe"
         [src]="focusStreamEmbedUrl"
         [title]="focusStreamIframeTitle"
+        tabindex="-1"
         allowfullscreen
         allow="autoplay; fullscreen; picture-in-picture"
       ></iframe>
+    </div>
+    <div class="focus-stream-layer__column">
+      <div class="focus-stream-layer__stack">
+        <div class="focus-stream-layer__pane">
+          <app-focus-pomodoro />
+        </div>
+      </div>
+      <button
+        type="button"
+        class="focus-mode-launch focus-mode-launch--exit focus-mode-launch--beneath-pane"
+        (click)="toggleFocusMode()"
+        aria-label="Exit Focus mode"
+        title="Exit Focus mode"
+      >
+        <span class="focus-mode-launch__face">
+          <svg
+            class="focus-mode-launch__bolt"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"
+            />
+          </svg>
+          <span class="focus-mode-launch__label">Exit focus</span>
+        </span>
+      </button>
     </div>
   </div>
 }
