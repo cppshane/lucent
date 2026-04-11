@@ -337,6 +337,121 @@
   font-family: 'Outfit', system-ui, sans-serif;
 }
 
+@media (max-width: 640px), (orientation: landscape) and (max-height: 520px) {
+  .focus-pomodoro__task {
+    font-size: 0.82rem;
+    padding: 0 0.35rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .focus-pomodoro__phase {
+    font-size: 0.62rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .focus-pomodoro__ring-box {
+    max-width: 12.5rem;
+  }
+
+  .focus-pomodoro__time-wrap {
+    padding: 0.65rem 0.85rem;
+  }
+
+  .focus-pomodoro__time {
+    font-size: 1.65rem;
+  }
+
+  .focus-pomodoro__controls {
+    margin-top: 0.55rem;
+    gap: 0.35rem;
+  }
+
+  .focus-pomodoro__btn {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+
+  .focus-pomodoro__panel {
+    margin-top: 0.65rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .focus-pomodoro__field {
+    font-size: 0.72rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .focus-pomodoro__field input {
+    font-size: 0.8rem;
+    padding: 0.38rem 0.45rem;
+  }
+
+  .focus-pomodoro__apply {
+    padding: 0.42rem 0.55rem;
+    font-size: 0.78rem;
+  }
+
+  .focus-pomodoro__task-add input[type='text'] {
+    font-size: 0.78rem;
+  }
+
+  .focus-pomodoro__cycles-input {
+    width: 2.85rem;
+    font-size: 0.78rem;
+  }
+
+  .focus-pomodoro__add-btn {
+    padding: 0.38rem 0.55rem;
+    font-size: 0.74rem;
+  }
+
+  .focus-pomodoro__task-list {
+    max-height: 7rem;
+  }
+
+  .focus-pomodoro__task-row {
+    font-size: 0.74rem;
+    padding: 0.3rem 0;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .focus-pomodoro__phase {
+    margin-bottom: 0.25rem;
+  }
+
+  .focus-pomodoro__ring-box {
+    max-width: 10.5rem;
+  }
+
+  .focus-pomodoro__time-wrap {
+    padding: 0.45rem 0.65rem;
+  }
+
+  .focus-pomodoro__time {
+    font-size: 1.4rem;
+  }
+
+  .focus-pomodoro__controls {
+    margin-top: 0.4rem;
+    gap: 0.3rem;
+  }
+
+  .focus-pomodoro__btn {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .focus-pomodoro__panel {
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .focus-pomodoro__task-list {
+    max-height: 5.5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .focus-pomodoro__arc {
     transition: none;

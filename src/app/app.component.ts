@@ -124,6 +124,10 @@ const FOCUS_LOFI_OPTIONS: readonly {
 const FOCUS_MODE_TRANSITION_MS = 1100;
 const FOCUS_MODE_TRANSITION_MS_REDUCED = 280;
 
+/** Same expression as `focus-mode-mobile.css` — narrow portrait or phone landscape */
+const PORTABLE_UI_MEDIA_QUERY =
+  '(max-width: 640px), (orientation: landscape) and (max-height: 520px)';
+
 @Component({
   selector: 'app-root',
   imports: [FocusPomodoroComponent, GlobeViewComponent, StreamSidebarComponent],
@@ -134,6 +138,25 @@ export class AppComponent implements OnInit, OnDestroy {
   @ViewChild(StreamSidebarComponent) private streamSidebar?: StreamSidebarComponent;
 
   private focusTransitionClearId: ReturnType<typeof setTimeout> | null = null;
+
+  private portableUiMql: MediaQueryList | null = null;
+
+  private readonly onPortableUiChange = (): void => {
+    if (!this.portableUiMql) {
+      return;
+    }
+    this.portableUiActive = this.portableUiMql.matches;
+    this.cdr.markForCheck();
+  };
+
+  /**
+   * True when compact portable layout applies (matches CSS portable breakpoint).
+   * Used to hide the Focus entry control while the stream sidebar is fullscreen.
+   */
+  portableUiActive =
+    typeof globalThis !== 'undefined' &&
+    typeof matchMedia !== 'undefined' &&
+    matchMedia(PORTABLE_UI_MEDIA_QUERY).matches;
 
   /**
    * First focus embed after a cold load with `?focus=` in the URL — use muted autoplay so
@@ -175,6 +198,8 @@ export class AppComponent implements OnInit, OnDestroy {
       clearTimeout(this.focusTransitionClearId);
       this.focusTransitionClearId = null;
     }
+    this.portableUiMql?.removeEventListener('change', this.onPortableUiChange);
+    this.portableUiMql = null;
   }
 
   /** Full-screen veil while toggling Focus mode (hides WebGL/layout churn). */
@@ -211,6 +236,11 @@ export class AppComponent implements OnInit, OnDestroy {
     return (
       this.selectedStream !== null || this.selectedRadio !== null || this.sidebarExplicitOpen
     );
+  }
+
+  /** Hide on portable while sidebar is open — panel covers the canvas */
+  get focusModeLaunchVisible(): boolean {
+    return !this.focusMode && (!this.sidebarOpen || !this.portableUiActive);
   }
 
   /** X vs magnifier: updates on close *start*, not when the panel unmounts. */
@@ -307,6 +337,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (typeof window === 'undefined') return;
+    if (typeof matchMedia !== 'undefined') {
+      this.portableUiMql = matchMedia(PORTABLE_UI_MEDIA_QUERY);
+      this.portableUiActive = this.portableUiMql.matches;
+      this.portableUiMql.addEventListener('change', this.onPortableUiChange);
+    }
     const u = new URL(window.location.href);
     const rawStream = u.searchParams.get('stream');
     const rawRadio = u.searchParams.get('radio');

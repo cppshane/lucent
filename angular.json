@@ -32,7 +32,8 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              "src/focus-mode-mobile.css"
             ],
             "scripts": [],
             "allowedCommonJsDependencies": [
@@ -49,8 +50,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "12kB",
-                  "maximumError": "14kB"
+                  "maximumWarning": "13kB",
+                  "maximumError": "16kB"
                 }
               ],
               "outputHashing": "all",
@@ -110,7 +111,8 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              "src/focus-mode-mobile.css"
             ],
             "scripts": []
           }
