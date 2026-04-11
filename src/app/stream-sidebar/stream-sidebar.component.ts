@@ -77,6 +77,12 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
     return n.length > 38 ? `${n.slice(0, 36)}…` : n;
   }
 
+  get streamSearchDockSummary(): string {
+    const n = this.filteredBrowseStreams.length;
+    if (this.allStreams.length === 0) return 'Loading…';
+    return n === 1 ? '1 stream' : `${n} streams`;
+  }
+
   @ViewChild('panelRef', { read: ElementRef })
   panelRef?: ElementRef<HTMLElement>;
 
@@ -90,7 +96,8 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   /** True: sidebar is full viewport width and not user-resizable. */
   isMobileSidebarLayout = false;
 
-  private resizing = false;
+  /** True while dragging the panel edge; disables pointer capture on embeds so window mousemove keeps firing. */
+  panelWidthDragActive = false;
   private resizeStartX = 0;
   private resizeStartWidth = 0;
   private layoutEmitRaf = 0;
@@ -98,6 +105,8 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   radioSectionExpanded = false;
+  /** Stream search dock — open by default (unlike Radio). */
+  streamSearchSectionExpanded = true;
 
   /** Sidebar browse: filter by API platform. */
   streamPlatformFilter: 'all' | 'twitch' | 'youtube' | 'kick' = 'all';
@@ -124,13 +133,6 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
 
   pickStreamFromBrowse(s: GlobeStreamPoint): void {
     this.streamPick.emit(s);
-  }
-
-  platformLabel(p: string | null | undefined): string {
-    const x = (p ?? 'twitch').toLowerCase();
-    if (x === 'youtube') return 'YouTube';
-    if (x === 'kick') return 'Kick';
-    return 'Twitch';
   }
 
   /** Dedupe canplay + loadeddata double fire per src. */
@@ -186,6 +188,10 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
     if (changes['stream'] || changes['radioSelection']) {
       queueMicrotask(() => this.emitLayoutWidth());
     }
+  }
+
+  toggleStreamSearchSection(): void {
+    this.streamSearchSectionExpanded = !this.streamSearchSectionExpanded;
   }
 
   toggleRadioSection(): void {
@@ -300,7 +306,7 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   onResizeMouseDown(ev: MouseEvent): void {
     if (this.isMobileSidebarLayout) return;
     ev.preventDefault();
-    this.resizing = true;
+    this.panelWidthDragActive = true;
     this.resizeActiveChange.emit(true);
     this.resizeStartX = ev.clientX;
     this.resizeStartWidth =
@@ -321,11 +327,11 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
       clearTimeout(this.closeTimer);
       this.closeTimer = null;
     }
-    if (this.resizing) this.resizeActiveChange.emit(false);
+    if (this.panelWidthDragActive) this.resizeActiveChange.emit(false);
   }
 
   private readonly onResizeMouseMove = (ev: MouseEvent): void => {
-    if (!this.resizing) return;
+    if (!this.panelWidthDragActive) return;
 
     const delta = this.resizeStartX - ev.clientX;
     const next = this.resizeStartWidth + delta;
@@ -338,8 +344,8 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   };
 
   private readonly onResizeMouseUp = (): void => {
-    if (!this.resizing) return;
-    this.resizing = false;
+    if (!this.panelWidthDragActive) return;
+    this.panelWidthDragActive = false;
     this.resizeActiveChange.emit(false);
     window.removeEventListener('mousemove', this.onResizeMouseMove);
     window.removeEventListener('mouseup', this.onResizeMouseUp);

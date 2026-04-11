@@ -1,8 +1,10 @@
 <aside
   #panelRef
   class="panel"
+  [class.panel--resizing]="panelWidthDragActive"
   [class.panel--open]="panelOpen"
   [class.panel--mobile-full]="isMobileSidebarLayout"
+  [class.panel--stream-search-expanded]="streamSearchSectionExpanded"
   role="dialog"
   aria-label="Stream details"
   [style.width.px]="panelWidthPx"
@@ -12,15 +14,33 @@
   }
 
   <div class="panel-scroll panel-scroll--browse">
-    <div class="panel-chrome-spacer" aria-hidden="true"></div>
-
     @if (stream) {
       <div class="stream-detail-block">
         <h2 class="title">{{ stream.title }}</h2>
         <div class="meta-row">
           <p class="meta">{{ stream.viewerCount | number }} watching</p>
+        </div>
+
+        <div class="stream-detail-player-slot">
+          <ng-container *ngIf="safePlayerUrl; else noPlayer">
+            <div class="player-wrap">
+              <iframe
+                [src]="safePlayerUrl"
+                [title]="embedPlayerTitle"
+                allowfullscreen
+                allow="autoplay; fullscreen; picture-in-picture"
+              ></iframe>
+            </div>
+          </ng-container>
+          <ng-template #noPlayer>
+            <p class="no-embed">Playback unavailable for this link.</p>
+          </ng-template>
+        </div>
+
+        <div class="stream-desc-heading">
+          <div class="section-title">channel description</div>
           <a
-            class="external"
+            class="external external--stream-open"
             [class.external--youtube]="isYoutubeStream"
             [class.external--kick]="isKickStream"
             [href]="stream.link"
@@ -29,83 +49,104 @@
             >{{ openOnPlatformLabel }}</a
           >
         </div>
-
-        <ng-container *ngIf="safePlayerUrl; else noPlayer">
-          <div class="player-wrap">
-            <iframe
-              [src]="safePlayerUrl"
-              [title]="embedPlayerTitle"
-              allowfullscreen
-              allow="autoplay; fullscreen; picture-in-picture"
-            ></iframe>
-          </div>
-        </ng-container>
-        <ng-template #noPlayer>
-          <p class="no-embed">Playback unavailable for this link.</p>
-        </ng-template>
-
-        <div class="section-title">channel description</div>
         <p class="desc">{{ stream.description }}</p>
       </div>
-    }
-
-    <section
-      class="stream-browse"
-      [class.stream-browse--fill]="!stream"
-      aria-label="Browse live streams"
-    >
-      <div class="stream-browse-toolbar">
-        <label class="stream-browse-label" for="stream-platform-filter">platform</label>
-        <select
-          id="stream-platform-filter"
-          class="stream-browse-select"
-          name="streamPlatformFilter"
-          [(ngModel)]="streamPlatformFilter"
-        >
-          <option value="all">All</option>
-          <option value="youtube">YouTube</option>
-          <option value="kick">Kick</option>
-          <option value="twitch">Twitch</option>
-        </select>
-        <label class="stream-browse-label" for="stream-search">search</label>
-        <input
-          id="stream-search"
-          type="search"
-          class="stream-browse-search"
-          name="streamSearch"
-          [(ngModel)]="streamSearchText"
-          placeholder="Filter by title or channel…"
-          autocomplete="off"
-          spellcheck="false"
-        />
+    } @else {
+      <div class="stream-detail-empty" role="status">
+        <p class="stream-detail-empty__title">No stream selected</p>
+        <p class="stream-detail-empty__hint">Pick one from the list or the globe.</p>
       </div>
-      <p class="stream-browse-sort-hint">Sorted by viewers (live)</p>
-      @if (allStreams.length === 0) {
-        <p class="stream-browse-empty">Loading streams…</p>
-      } @else if (filteredBrowseStreams.length === 0) {
-        <p class="stream-browse-empty">No streams match your filters.</p>
-      } @else {
-        <ul class="stream-browse-list">
-          @for (s of filteredBrowseStreams; track s.channelLogin) {
-            <li>
-              <button
-                type="button"
-                class="stream-browse-row"
-                [class.stream-browse-row--active]="stream?.channelLogin === s.channelLogin"
-                (click)="pickStreamFromBrowse(s)"
-              >
-                <span class="stream-browse-row-platform">{{ platformLabel(s.platform) }}</span>
-                <span class="stream-browse-row-title">{{ s.title }}</span>
-                <span class="stream-browse-row-views">{{ s.viewerCount | number }}</span>
-              </button>
-            </li>
-          }
-        </ul>
-      }
-    </section>
+    }
   </div>
 
-  <footer class="radio-dock" aria-label="Radio">
+  <footer
+    class="stream-search-dock"
+    [class.stream-search-dock--collapsed]="!streamSearchSectionExpanded"
+    aria-label="Stream search"
+  >
+    <button
+      type="button"
+      class="stream-search-toggle"
+      (click)="toggleStreamSearchSection()"
+      [attr.aria-expanded]="streamSearchSectionExpanded"
+      [attr.aria-controls]="streamSearchSectionExpanded ? 'stream-search-expanded' : null"
+      id="stream-search-toggle"
+    >
+      <span class="stream-search-chevron" aria-hidden="true">{{
+        streamSearchSectionExpanded ? '▼' : '▸'
+      }}</span>
+      <span class="stream-search-toggle-title">Streams</span>
+      <span class="stream-search-toggle-summary" aria-live="polite">{{ streamSearchDockSummary }}</span>
+    </button>
+
+    @if (streamSearchSectionExpanded) {
+      <div id="stream-search-expanded" class="stream-search-expanded" role="region" aria-labelledby="stream-search-toggle">
+        <div class="stream-search-dock-inner">
+          <div class="stream-browse-toolbar">
+            <label class="stream-browse-label" for="stream-platform-filter">platform</label>
+            <select
+              id="stream-platform-filter"
+              class="stream-browse-select"
+              name="streamPlatformFilter"
+              [(ngModel)]="streamPlatformFilter"
+            >
+              <option value="all">All</option>
+              <option value="youtube">YouTube</option>
+              <option value="kick">Kick</option>
+              <option value="twitch">Twitch</option>
+            </select>
+            <label class="stream-browse-label" for="stream-search">search</label>
+            <input
+              id="stream-search"
+              type="search"
+              class="stream-browse-search"
+              name="streamSearch"
+              [(ngModel)]="streamSearchText"
+              placeholder="Filter by title or channel…"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          @if (allStreams.length === 0) {
+            <p class="stream-browse-empty">Loading streams…</p>
+          } @else if (filteredBrowseStreams.length === 0) {
+            <p class="stream-browse-empty">No streams match your filters.</p>
+          } @else {
+            <ul class="stream-browse-list">
+              @for (s of filteredBrowseStreams; track s.channelLogin) {
+                <li>
+                  <button
+                    type="button"
+                    class="stream-browse-card"
+                    [class.stream-browse-card--active]="stream?.channelLogin === s.channelLogin"
+                    (click)="pickStreamFromBrowse(s)"
+                  >
+                    <div class="stream-browse-card-media">
+                      @if (s.thumbnail) {
+                        <img [src]="s.thumbnail" alt="" loading="lazy" />
+                      }
+                      <div class="stream-browse-card-scrim" aria-hidden="true"></div>
+                      <div class="stream-browse-card-overlay">
+                        <span class="stream-browse-card-title">{{ s.title }}</span>
+                        <span class="stream-browse-card-views">{{ s.viewerCount | number }} watching</span>
+                        <span class="stream-browse-card-desc">{{ s.description }}</span>
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    }
+  </footer>
+
+  <footer
+    class="radio-dock"
+    [class.radio-dock--collapsed]="!radioSectionExpanded"
+    aria-label="Radio"
+  >
     <button
       type="button"
       class="radio-toggle"
