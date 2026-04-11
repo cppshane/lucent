@@ -5,6 +5,25 @@
   height: 100%;
 }
 
+:host.app-root--focus-mode {
+  min-height: 100%;
+}
+
+.focus-stream-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: #000;
+  pointer-events: auto;
+}
+
+.focus-stream-layer__iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
 .site-brand {
   position: absolute;
   top: 1.25rem;
@@ -290,6 +309,176 @@
 }
 
 @keyframes stream-search-gradient-flow {
+  0% {
+    background-position: 0 0;
+  }
+
+  50% {
+    background-position: 400% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* —— Focus mode —— */
+
+.focus-mode-launch {
+  --focus-surface: linear-gradient(150deg, #161b26 0%, #0a0d12 55%, #080a0e 100%);
+
+  position: fixed;
+  left: 50%;
+  top: 75%;
+  transform: translate(-50%, -50%);
+  z-index: 70;
+  min-width: 3.1rem;
+  min-height: 3.1rem;
+  padding: 0.55rem 1.15rem 0.55rem 0.75rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 999px;
+  overflow: visible;
+  transition:
+    top 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.28s ease,
+    filter 0.2s ease;
+}
+
+.focus-mode-launch--exit {
+  left: auto;
+  right: 1rem;
+  top: 1rem;
+  transform: none;
+  padding: 0.45rem 0.65rem;
+}
+
+.focus-mode-launch:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
+}
+
+.focus-mode-launch:hover {
+  filter: drop-shadow(0 6px 18px rgba(236, 72, 153, 0.35));
+}
+
+.focus-mode-launch:active {
+  transform: translate(-50%, -50%) scale(1.02);
+}
+
+.focus-mode-launch--exit:hover {
+  filter: drop-shadow(0 6px 18px rgba(236, 72, 153, 0.35));
+}
+
+.focus-mode-launch--exit:active {
+  transform: scale(1.02);
+}
+
+.focus-mode-launch::before,
+.focus-mode-launch::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  border-radius: 999px;
+  z-index: 0;
+  background: linear-gradient(
+    45deg,
+    #ff006e,
+    #ff5c00,
+    #ffbe0b,
+    #fb5607,
+    #ff006e,
+    #8338ec,
+    #3a86ff,
+    #06d6a0,
+    #00bbf9,
+    #ff006e
+  );
+  background-size: 400%;
+  animation: focus-mode-rainbow-flow 45s linear infinite;
+}
+
+.focus-mode-launch::after {
+  filter: blur(26px);
+  opacity: 0.95;
+}
+
+.focus-mode-launch:hover::after {
+  filter: blur(32px) brightness(1.08);
+}
+
+.focus-mode-launch__face {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--focus-surface);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 3px 14px rgba(0, 0, 0, 0.5);
+  color: rgba(255, 248, 252, 0.95);
+}
+
+.focus-mode-launch--exit .focus-mode-launch__face {
+  min-height: 2.5rem;
+  padding: 0 0.2rem;
+}
+
+.focus-mode-launch__bolt {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 255, 0.45));
+}
+
+.focus-mode-launch__label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .focus-mode-launch {
+    padding: 0.5rem;
+  }
+
+  .focus-mode-launch__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-mode-launch::before,
+  .focus-mode-launch::after {
+    animation: none;
+    background-position: 0 0;
+  }
+}
+
+@keyframes focus-mode-rainbow-flow {
   0% {
     background-position: 0 0;
   }

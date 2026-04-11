@@ -1,23 +1,26 @@
-<div class="site-brand">
-  <h1 class="site-title">lucent.earth</h1>
-  <div class="site-credits" aria-label="Source code">
-    <a
-      class="site-credits-link"
-      href="https://github.com/cppshane/lucent"
-      target="_blank"
-      rel="noopener noreferrer"
-      >GitHub</a
-    >
+@if (!focusMode) {
+  <div class="site-brand">
+    <h1 class="site-title">lucent.earth</h1>
+    <div class="site-credits" aria-label="Source code">
+      <a
+        class="site-credits-link"
+        href="https://github.com/cppshane/lucent"
+        target="_blank"
+        rel="noopener noreferrer"
+        >GitHub</a
+      >
+    </div>
   </div>
-</div>
-<button
-  type="button"
-  class="stream-search-launch"
-  [class.stream-search-launch--panel-open]="searchLaunchShowsClose"
-  (click)="onSearchToggleClick()"
-  [attr.aria-label]="searchLaunchShowsClose ? 'Close panel' : 'Open stream search'"
-  [attr.title]="searchLaunchShowsClose ? 'Close' : 'Browse live streams'"
->
+}
+@if (!focusMode) {
+  <button
+    type="button"
+    class="stream-search-launch"
+    [class.stream-search-launch--panel-open]="searchLaunchShowsClose"
+    (click)="onSearchToggleClick()"
+    [attr.aria-label]="searchLaunchShowsClose ? 'Close panel' : 'Open stream search'"
+    [attr.title]="searchLaunchShowsClose ? 'Close' : 'Browse live streams'"
+  >
   <span class="stream-search-launch__face">
     <span class="stream-search-launch__icons" aria-hidden="true">
       <svg
@@ -44,8 +47,48 @@
       </svg>
     </span>
   </span>
+  </button>
+}
+
+<button
+  type="button"
+  class="focus-mode-launch"
+  [class.focus-mode-launch--exit]="focusMode"
+  (click)="toggleFocusMode()"
+  [attr.aria-label]="focusMode ? 'Exit Focus mode' : 'Enter Focus mode'"
+  [attr.title]="focusMode ? 'Exit Focus mode' : 'Focus mode — fullscreen stream with corner globe'"
+>
+  <span class="focus-mode-launch__face">
+    <svg
+      class="focus-mode-launch__bolt"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"
+      />
+    </svg>
+    <span class="focus-mode-launch__label">{{
+      focusMode ? 'Exit focus' : 'Focus Mode'
+    }}</span>
+  </span>
 </button>
+
+@if (focusMode && focusStreamEmbedUrl) {
+  <div class="focus-stream-layer" aria-hidden="true">
+    <iframe
+      class="focus-stream-layer__iframe"
+      [src]="focusStreamEmbedUrl"
+      [title]="focusStreamIframeTitle"
+      allowfullscreen
+      allow="autoplay; fullscreen; picture-in-picture"
+    ></iframe>
+  </div>
+}
+
 <app-globe-view
+  [focusMode]="focusMode"
   [sidebarOpen]="sidebarOpen"
   [sidebarInsetSnap]="sidebarPanelResizing"
   [selectedStream]="selectedStream"
@@ -56,7 +99,7 @@
   (radioSelected)="onRadioSelected($event)"
   (streamsCatalogChange)="onStreamsCatalog($event)"
 />
-@if (sidebarOpen) {
+@if (sidebarOpen && !(focusMode && selectedStream)) {
   <app-stream-sidebar
     [stream]="selectedStream"
     [allStreams]="allStreams"

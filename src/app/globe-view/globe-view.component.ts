@@ -100,6 +100,8 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   @Input() sidebarOpen = false;
   /** While true, globe width follows inset immediately (sidebar drag resize). */
   @Input() @HostBinding('class.globe-inset-snap') sidebarInsetSnap = false;
+  /** Corner mini-globe: fixed size, no zoom/rotate (Focus mode). */
+  @Input() @HostBinding('class.globe-view--focus') focusMode = false;
   @Input() selectedStream: GlobeStreamPoint | null = null;
   /** Sidebar radio selection — used to fly the camera to the station. */
   @Input() selectedRadio: GlobeRadioSelection | null = null;
@@ -124,6 +126,12 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private readonly minCameraAltitude = 0.006;
   /** Camera distance in globe radii; larger = more zoomed out */
   private readonly initialGlobeAltitude = 2.65;
+  /** OrbitControls idle spin — default sidebar view. */
+  private readonly orbitAutoRotateSpeedDefault = 0.04;
+  /** Faster idle spin in Focus mini-globe (zoomed out — needs visible motion). */
+  private readonly orbitAutoRotateSpeedFocus = 0.15;
+  /** Animate back to `initialGlobe*` when entering Focus (matches first-visit framing). */
+  private readonly focusModeInitialViewTransitionMs = 700;
   private readonly selectedFocusAltitude = 0.42;
   private readonly selectedFocusTransitionMs = 900;
   private readonly markerRadiusMax = 0.28;
@@ -198,6 +206,8 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private hoveredMarkerId: string | null = null;
 
   private bloomConfigured = false;
+  /** Bloom pass — disabled in Focus mode so EffectComposer preserves transparent clear (no dark ring). */
+  private globeBloomPass: InstanceType<typeof UnrealBloomPass> | null = null;
   /**
    * UnrealBloom uses screen luminance. Day texture must peak *below* `globeBloomThreshold`
    * (after `globeDayTextureBloomCap`); Twitch purple + border lines sit a bit above after lighting.
@@ -211,6 +221,13 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private readonly globeAtmosphereColor = 'rgba(255, 255, 255, 0.42)';
   /** Thickness in globe-radius units (library default 0.15). */
   private readonly globeAtmosphereAltitude = 0.04;
+  /**
+   * Focus mode: bloom off — day texture is normally capped at `globeDayTextureBloomCap` (0.28) so
+   * clouds don’t bloom; without bloom that cap leaves the planet very dark. Raise cap in Focus only.
+   */
+  private readonly focusGlobeDayTextureCap = 0.98;
+  /** Extra multiplier after mix (night + day). */
+  private readonly focusGlobeLuminanceGain = 1.72;
 
   private readonly geoJsonUrl =
     'https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson';
@@ -270,13 +287,24 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.syncAutoRotate();
+    this.applyOrbitPolicies();
     this.syncSelectedMapFocus();
     if (changes['selectedStream'] || changes['selectedRadio']) {
       queueMicrotask(() => this.refreshMapMarkersOnGlobe());
     }
-    if (changes['sidebarOpen']) {
+    if (changes['sidebarOpen'] || changes['focusMode']) {
       queueMicrotask(() => this.scheduleGlobeLayoutSync());
+    }
+    if (changes['focusMode']) {
+      const enteringFocus =
+        changes['focusMode'].currentValue === true &&
+        changes['focusMode'].previousValue !== true;
+      queueMicrotask(() => {
+        this.applyFocusModeRendering();
+        if (enteringFocus) {
+          this.resetGlobeToInitialViewForFocus();
+        }
+      });
     }
   }
 
@@ -484,10 +512,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     (globalThis as unknown as { globe?: GlobeInstance }).globe = globe;
 
     globe.backgroundColor('#000000');
-    globe
-      .showAtmosphere(true)
-      .atmosphereColor(this.globeAtmosphereColor)
-      .atmosphereAltitude(this.globeAtmosphereAltitude);
     globe.showGraticules(false);
     globe.showGlobe(true);
     globe.globeImageUrl(null as unknown as string);
@@ -554,37 +578,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       mat.uniforms['globeRotation'].value.set(pov.lng, pov.lat);
       globe.globeMaterial(mat);
 
-      globe
-        .polygonsData(preload.countryFeatures)
-        .polygonAltitude(() => 0.0015)
-        .polygonCapColor(() => 'rgba(0,0,0,0)')
-        .polygonSideColor(() => 'rgba(0,0,0,0)')
-        .polygonStrokeColor(() => null)
-        .polygonsTransitionDuration(0)
-        .pathsData(preload.borderPaths)
-        .pathPoints('pnts')
-        .pathPointLat((p: [number, number]) => p[0])
-        .pathPointLng((p: [number, number]) => p[1])
-        .pathPointAlt((path: object) => {
-          const style = (path as BorderPath).style;
-          if (style === 'glow1') return 0.0104;
-          if (style === 'glow2') return 0.0108;
-          return 0.01;
-        })
-        .pathStroke((path: object) => {
-          const style = (path as BorderPath).style;
-          if (style === 'glow1') return 0.6;
-          if (style === 'glow2') return 0.85;
-          return null;
-        })
-        .pathColor((path: object) => {
-          const style = (path as BorderPath).style;
-          if (style === 'glow1') return 'rgba(150,225,255,0.22)';
-          if (style === 'glow2') return 'rgba(130,210,240,0.14)';
-          return 'rgba(240,245,250,0.42)';
-        })
-        .pathResolution(1)
-        .pathTransitionDuration(0);
+      this.applyFocusModeRendering();
 
       this.rotateTimer = setTimeout(() => {
         this.autoRotateEnabled = true;
@@ -592,9 +586,9 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
         if (c) {
           c.enableDamping = true;
           c.dampingFactor = 0.06;
-          c.autoRotate = !this.sidebarOpen;
-          c.autoRotateSpeed = 0.04;
+          c.autoRotateSpeed = this.orbitAutoRotateSpeedDefault;
         }
+        this.applyOrbitPolicies();
       }, this.rotateDelayMs);
 
       this.syncGlobeLayout();
@@ -654,16 +648,126 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     r.setPixelRatio(Math.min(dpr, 1.5));
   }
 
+  /**
+   * Focus mode: transparent clear, no atmosphere halo, no border paths (they sit above the
+   * surface and bloom as a dark ring), and bloom disabled so EffectComposer keeps alpha.
+   */
+  /** Fly to the same POV as first load — used when entering Focus after zooming on the main globe. */
+  private resetGlobeToInitialViewForFocus(): void {
+    if (!this.globe || !this.focusMode) return;
+    this.globe.pointOfView(
+      {
+        lat: this.initialGlobeLat,
+        lng: this.initialGlobeLng,
+        altitude: this.initialGlobeAltitude,
+      },
+      this.focusModeInitialViewTransitionMs,
+    );
+  }
+
+  private applyFocusModeRendering(): void {
+    this.applyGlobeBackdropMode();
+    if (!this.globe) return;
+    this.applyAtmosphereForFocus(this.globe);
+    this.applyGeoLayers(this.globe);
+    this.applyBloomForFocus();
+    this.applyFocusGlobeBrightness();
+  }
+
+  /**
+   * Updates uniforms on the **live** globe material from globe.gl — `this.dayNightMaterial` can
+   * diverge from `globe.globeMaterial()` after internal updates, so edits would be no-ops.
+   */
+  private applyFocusGlobeBrightness(): void {
+    if (!this.globe) return;
+    const mat = this.globe.globeMaterial() as THREE.ShaderMaterial;
+    if (!(mat instanceof THREE.ShaderMaterial) || !mat.uniforms) return;
+
+    const gain = mat.uniforms['luminanceGain'];
+    const cap = mat.uniforms['globeDayTextureCap'];
+    if (gain) {
+      gain.value = this.focusMode ? this.focusGlobeLuminanceGain : 1.0;
+    }
+    if (cap) {
+      cap.value = this.focusMode
+        ? this.focusGlobeDayTextureCap
+        : this.globeDayTextureBloomCap;
+    }
+    this.dayNightMaterial = mat;
+  }
+
+  private applyGlobeBackdropMode(): void {
+    if (!this.globe) return;
+    if (this.focusMode) {
+      this.globe.backgroundColor('rgba(0,0,0,0)');
+    } else {
+      this.globe.backgroundColor('#000000');
+    }
+    const canvas = this.globe.renderer()?.domElement as HTMLCanvasElement | undefined;
+    if (canvas) {
+      canvas.style.background = this.focusMode ? 'transparent' : '';
+    }
+  }
+
+  private applyAtmosphereForFocus(globe: GlobeInstance): void {
+    if (this.focusMode) {
+      globe.showAtmosphere(false);
+    } else {
+      globe
+        .showAtmosphere(true)
+        .atmosphereColor(this.globeAtmosphereColor)
+        .atmosphereAltitude(this.globeAtmosphereAltitude);
+    }
+  }
+
+  private applyGeoLayers(globe: GlobeInstance): void {
+    const feats = this.focusMode ? [] : (this.countryFeatures ?? []);
+    const paths = this.focusMode ? [] : (this.borderPaths ?? []);
+    globe
+      .polygonsData(feats)
+      .polygonAltitude(() => 0.0015)
+      .polygonCapColor(() => 'rgba(0,0,0,0)')
+      .polygonSideColor(() => 'rgba(0,0,0,0)')
+      .polygonStrokeColor(() => null)
+      .polygonsTransitionDuration(0)
+      .pathsData(paths)
+      .pathPoints('pnts')
+      .pathPointLat((p: [number, number]) => p[0])
+      .pathPointLng((p: [number, number]) => p[1])
+      .pathPointAlt((path: object) => {
+        const style = (path as BorderPath).style;
+        if (style === 'glow1') return 0.0104;
+        if (style === 'glow2') return 0.0108;
+        return 0.01;
+      })
+      .pathStroke((path: object) => {
+        const style = (path as BorderPath).style;
+        if (style === 'glow1') return 0.6;
+        if (style === 'glow2') return 0.85;
+        return null;
+      })
+      .pathColor((path: object) => {
+        const style = (path as BorderPath).style;
+        if (style === 'glow1') return 'rgba(150,225,255,0.22)';
+        if (style === 'glow2') return 'rgba(130,210,240,0.14)';
+        return 'rgba(240,245,250,0.42)';
+      })
+      .pathResolution(1)
+      .pathTransitionDuration(0);
+  }
+
+  private applyBloomForFocus(): void {
+    if (!this.globeBloomPass) return;
+    this.globeBloomPass.enabled = !this.focusMode;
+  }
+
   private onGlobeAltitudeChanged(globe: GlobeInstance, altitude: number): void {
     const prevAlt = this.currentAltitude;
     this.currentAltitude = altitude;
     if (Math.abs(altitude - prevAlt) > 1e-5) {
       this.refreshMapMarkersOnGlobe();
     }
-    const controls = globe.controls?.();
-    if (controls && this.autoRotateEnabled) {
-      controls.autoRotate = !this.sidebarOpen;
-    }
+    this.applyOrbitPolicies();
   }
 
   /** Sun + optional globe build-in (see `animateIn: false` + `stepGlobeIntroAnimation`). */
@@ -713,6 +817,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       this.globeBloomRadius,
       this.globeBloomThreshold,
     );
+    this.globeBloomPass = bloomPass;
     composer.addPass(bloomPass);
     this.bloomConfigured = true;
   }
@@ -910,11 +1015,33 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     this.globe.customLayerData(this.mergeMapPoints());
   }
 
-  private syncAutoRotate(): void {
-    if (!this.autoRotateEnabled) return;
-    const controls = this.globe?.controls?.();
-    if (!controls) return;
-    controls.autoRotate = !this.sidebarOpen;
+  /** OrbitControls: Focus = drag rotate only (no zoom/pan); else sidebar + auto-rotate. */
+  private applyOrbitPolicies(): void {
+    const c = this.globe?.controls?.() as
+      | {
+          enableZoom?: boolean;
+          enableRotate?: boolean;
+          enablePan?: boolean;
+          autoRotate?: boolean;
+          autoRotateSpeed?: number;
+        }
+      | undefined;
+    if (!c) return;
+    if (this.focusMode) {
+      c.enableZoom = false;
+      c.enableRotate = true;
+      c.enablePan = false;
+      c.autoRotate = true;
+      c.autoRotateSpeed = this.orbitAutoRotateSpeedFocus;
+      return;
+    }
+    c.autoRotateSpeed = this.orbitAutoRotateSpeedDefault;
+    c.enableZoom = true;
+    c.enableRotate = true;
+    c.enablePan = true;
+    if (this.autoRotateEnabled) {
+      c.autoRotate = !this.sidebarOpen;
+    }
   }
 
   private tryEmitInitialStreamQuery(): void {
@@ -977,6 +1104,10 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   }
 
   private syncSelectedMapFocus(): void {
+    if (this.focusMode) {
+      return;
+    }
+
     const channel = this.selectedStream?.channelLogin ?? null;
     const idx =
       channel === null || !this.streamPoints.length

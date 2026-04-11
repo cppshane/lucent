@@ -1,6 +1,8 @@
 import { ChangeDetectorRef, Component, HostBinding, OnInit, ViewChild } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { GlobeViewComponent } from './globe-view/globe-view.component';
 import type { GlobeRadioSelection } from './radio.models';
+import { buildStreamEmbedUrl } from './stream-embed-url';
 import type { GlobeStreamPoint } from './stream.models';
 import { StreamSidebarComponent } from './stream-sidebar/stream-sidebar.component';
 
@@ -13,7 +15,15 @@ import { StreamSidebarComponent } from './stream-sidebar/stream-sidebar.componen
 export class AppComponent implements OnInit {
   @ViewChild(StreamSidebarComponent) private streamSidebar?: StreamSidebarComponent;
 
-  constructor(private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly cdr: ChangeDetectorRef,
+    private readonly sanitizer: DomSanitizer,
+  ) {}
+
+  /** Immersive layout: corner globe + dedicated fullscreen embed (sidebar unmounted). */
+  focusMode = false;
+  /** Full-viewport Focus player — separate iframe from the sidebar. */
+  focusStreamEmbedUrl: SafeResourceUrl | null = null;
 
   selectedStream: GlobeStreamPoint | null = null;
   selectedRadio: GlobeRadioSelection | null = null;
@@ -28,6 +38,11 @@ export class AppComponent implements OnInit {
   /** Pixels reserved on the right for the fixed sidebar; drives globe host width */
   @HostBinding('style.--sidebar-inset.px')
   sidebarInsetPx = 0;
+
+  @HostBinding('class.app-root--focus-mode')
+  get focusModeHostClass(): boolean {
+    return this.focusMode;
+  }
   /** From `?stream=` on first load; globe selects + focuses after streams load */
   initialStreamQuery: string | null = null;
   initialRadioQuery: string | null = null;
@@ -47,6 +62,19 @@ export class AppComponent implements OnInit {
     this.sidebarExplicitOpen = true;
     this.panelCloseAnimationStarted = false;
     this.sidebarInsetPx = 640;
+  }
+
+  toggleFocusMode(): void {
+    this.focusMode = !this.focusMode;
+    if (this.focusMode) {
+      this.panelCloseAnimationStarted = false;
+      if (this.selectedStream) {
+        this.sidebarInsetPx = 0;
+      }
+    } else if (this.sidebarOpen) {
+      this.sidebarInsetPx = 640;
+    }
+    this.refreshFocusStreamEmbed();
   }
 
   onSearchToggleClick(): void {
@@ -77,6 +105,7 @@ export class AppComponent implements OnInit {
     this.selectedStream = stream;
     this.panelCloseAnimationStarted = false;
     this.sidebarInsetPx = 640;
+    this.refreshFocusStreamEmbed();
     this.syncUrlQueryParams();
   }
 
@@ -98,11 +127,28 @@ export class AppComponent implements OnInit {
     this.selectedRadio = null;
     this.sidebarExplicitOpen = false;
     this.panelCloseAnimationStarted = false;
+    this.focusStreamEmbedUrl = null;
     this.syncUrlQueryParams();
   }
 
   onSidebarLayoutWidth(px: number): void {
     this.sidebarInsetPx = Math.max(0, Math.round(px));
+  }
+
+  private refreshFocusStreamEmbed(): void {
+    if (!this.focusMode || !this.selectedStream) {
+      this.focusStreamEmbedUrl = null;
+      return;
+    }
+    const raw = buildStreamEmbedUrl(this.selectedStream.channelLogin);
+    this.focusStreamEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
+  }
+
+  get focusStreamIframeTitle(): string {
+    const p = (this.selectedStream?.platform ?? 'twitch').toLowerCase();
+    if (p === 'youtube') return 'YouTube player';
+    if (p === 'kick') return 'Kick player';
+    return 'Twitch player';
   }
 
   private syncUrlQueryParams(): void {

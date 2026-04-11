@@ -11,6 +11,57 @@
   transition: none;
 }
 
+:host.globe-view--focus {
+  position: fixed;
+  top: 0.65rem;
+  left: 0.65rem;
+  width: min(36vmin, 320px) !important;
+  height: min(36vmin, 320px);
+  max-width: calc(100vw - 1.3rem);
+  max-height: min(38vh, 320px);
+  z-index: 60;
+  transition:
+    top 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto;
+  /*
+   * Soft halo so the mini-globe separates from the stream without overpowering the frame.
+   */
+  filter:
+    drop-shadow(0 0 10px rgba(150, 210, 255, 0.55))
+    drop-shadow(0 0 24px rgba(100, 180, 255, 0.38))
+    drop-shadow(0 0 44px rgba(90, 150, 255, 0.22))
+    drop-shadow(0 10px 22px rgba(0, 0, 0, 0.38));
+}
+
+/* Circular viewport: hides square canvas corners even if bloom/composer leaves some opaque edge */
+:host.globe-view--focus .globe-shell {
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/*
+ * Focus uses EffectComposer without bloom — renderer.toneMappingExposure often does not affect
+ * the final blit the same way as renderer.render(); shader tweaks were imperceptible. Compositor
+ * brightness after the WebGL canvas is the reliable lift (whole layer: globe + markers).
+ */
+:host.globe-view--focus .globe-host {
+  filter: brightness(3.15) contrast(1.14) saturate(1.12);
+}
+
+:host.globe-view--focus .globe-loading {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host.globe-view--focus {
+    transition: none;
+  }
+}
+
 .globe-shell {
   position: relative;
   width: 100%;

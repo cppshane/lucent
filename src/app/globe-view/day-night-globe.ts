@@ -37,6 +37,8 @@ uniform vec2 sunPosition;
 uniform vec2 globeRotation;
 /** Limits Blue Marble peaks before mixing so UnrealBloom (full-frame) ignores clouds/snow. */
 uniform float globeDayTextureCap;
+/** 1 default; raised in Focus when bloom is off (globe terrain only). */
+uniform float luminanceGain;
 
 in vec3 vNormal;
 in vec2 vUv;
@@ -78,6 +80,7 @@ void main() {
   vec4 nightColor = texture(nightTexture, vUv);
   float blendFactor = smoothstep(-0.1, 0.1, intensity);
   fragColor = mix(nightColor, dayColor, blendFactor);
+  fragColor.rgb *= luminanceGain;
 }
 `;
 
@@ -97,6 +100,7 @@ export function createDayNightGlobeMaterial(
       sunPosition: { value: new THREE.Vector2() },
       globeRotation: { value: new THREE.Vector2() },
       globeDayTextureCap: { value: globeDayTextureCap },
+      luminanceGain: { value: 1.0 },
     },
     vertexShader: dayNightVertexGlsl,
     fragmentShader: dayNightFragmentGlsl,

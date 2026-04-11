@@ -18,6 +18,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
 import type { GlobeRadioSelection } from '../radio.models';
 import { RadioBrowserService } from '../radio-browser.service';
+import { buildStreamEmbedUrl } from '../stream-embed-url';
 import type { GlobeStreamPoint } from '../stream.models';
 
 @Component({
@@ -260,29 +261,9 @@ export class StreamSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   private buildPlayerUrl(channel: string): SafeResourceUrl {
-    if (channel.startsWith('yt-')) {
-      const id = channel.slice(3);
-      const url = `https://www.youtube.com/embed/${encodeURIComponent(id)}?autoplay=1`;
-      return this.sanitizer.bypassSecurityTrustResourceUrl(url);
-    }
-
-    if (channel.startsWith('kick-')) {
-      const slug = channel.slice(5);
-      const url = `https://player.kick.com/${encodeURIComponent(slug)}?autoplay=true`;
-      return this.sanitizer.bypassSecurityTrustResourceUrl(url);
-    }
-
-    const params = new URLSearchParams();
-    params.set('channel', channel);
-    params.set('muted', 'false');
-    const parents = new Set<string>([
-      typeof window !== 'undefined' ? window.location.hostname : 'localhost',
-      'localhost',
-      '127.0.0.1',
-    ]);
-    parents.forEach((p) => params.append('parent', p));
-    const url = `https://player.twitch.tv/?${params.toString()}`;
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    return this.sanitizer.bypassSecurityTrustResourceUrl(
+      buildStreamEmbedUrl(channel),
+    );
   }
 
   onCloseClick(): void {
