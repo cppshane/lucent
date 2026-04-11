@@ -76,6 +76,11 @@
   flex: 0 1 auto;
 }
 
+/* No stream + STREAMS collapsed: keep STREAMS + Radio pinned to the bottom of the sidebar */
+.panel:has(.stream-detail-empty):has(.stream-search-dock--collapsed) .stream-search-dock {
+  margin-top: auto;
+}
+
 .stream-detail-block {
   display: flex;
   flex-direction: column;
