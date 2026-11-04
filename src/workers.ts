@@ -164,93 +164,160 @@ async function fetchPingdomOutages(apiKey: string): Promise<OutageDto[]> {
 
   for (const check of checks) {
     // Pingdom statuses: up, down, unconfirmed, paused, unknown
-    if (check.status === 'down' || check.status === 'unconfirmed') {
-      const name = check.name || 'Unknown Site';
-      let loc = geolocateFromText(name);
-      
-      // Default to Middle of Atlantic / Equator if geolocation fails, apply jitter
-      if (!loc) {
-        loc = applyJitter(37.0902, -95.7129, 1000); // US central fallback
-      } else {
-        loc = applyJitter(loc.latitude, loc.longitude, 20);
-      }
-
-      const logo = getLogoForName(name);
-      const isDown = check.status === 'down';
-      const status = isDown ? 'down' : 'degraded';
-      const color = isDown ? 'EF4444' : 'F59E0B';
-
-      outages.push({
-        id: `pingdom-${check.id}`,
-        title: name,
-        description: `Pingdom check reported ${check.status.toUpperCase()}. Target: ${check.hostname || 'N/A'}.`,
-        link: `https://my.pingdom.com/`,
-        thumbnail: getThumbnailUrl(logo, color),
-        latencyMs: check.lastresponsetime || (isDown ? 5000 : 800),
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        uncertaintyKm: loc.uncertaintyKm,
-        platform: 'pingdom',
-        status: status,
-        service: logo,
-        timestamp: check.laststatuschangetime ? check.laststatuschangetime * 1000 : Date.now()
-      });
+    if (check.status === 'paused') {
+      continue;
     }
+
+    const name = check.name || 'Unknown Site';
+    let loc = geolocateFromText(name);
+    
+    // Default to Middle of Atlantic / Equator if geolocation fails, apply jitter
+    if (!loc) {
+      loc = applyJitter(37.0902, -95.7129, 1000); // US central fallback
+    } else {
+      loc = applyJitter(loc.latitude, loc.longitude, 20);
+    }
+
+    const logo = getLogoForName(name);
+    const isDown = check.status === 'down';
+    const isDegraded = check.status === 'unconfirmed';
+    const status: 'down' | 'degraded' | 'up' = isDown ? 'down' : isDegraded ? 'degraded' : 'up';
+    const color = isDown ? 'EF4444' : isDegraded ? 'F59E0B' : '10B981';
+
+    outages.push({
+      id: `pingdom-${check.id}`,
+      title: name,
+      description: status === 'up'
+        ? 'System operational. All health checks passing.'
+        : `Pingdom check reported ${check.status.toUpperCase()}. Target: ${check.hostname || 'N/A'}.`,
+      link: `https://my.pingdom.com/`,
+      thumbnail: getThumbnailUrl(logo, color),
+      latencyMs: check.lastresponsetime || (isDown ? 5000 : isDegraded ? 800 : 75),
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      uncertaintyKm: loc.uncertaintyKm,
+      platform: 'pingdom',
+      status: status,
+      service: logo,
+      timestamp: check.laststatuschangetime ? check.laststatuschangetime * 1000 : Date.now()
+    });
   }
 
   return outages;
 }
 
 async function fetchStatusGatorOutages(apiKey: string): Promise<OutageDto[]> {
-  // StatusGator API V3
-  const url = 'https://api.statusgator.com/api/v3/monitors';
-  const res = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Accept': 'application/json'
+  const baseUrl = 'https://statusgator.com/api/v3';
+  const headers = {
+    'Authorization': `Bearer ${apiKey}`,
+    'Accept': 'application/json'
+  };
+
+  // 1. Fetch organization boards (StatusGator v3 scopes monitors to boards)
+  const boardsRes = await fetch(`${baseUrl}/boards`, { headers });
+  if (!boardsRes.ok) {
+    throw new Error(`StatusGator boards API returned HTTP ${boardsRes.status}`);
+  }
+
+  const boardsData = (await boardsRes.json()) as any;
+  const boards: any[] = Array.isArray(boardsData?.data) ? boardsData.data : [];
+
+  // 2. Fetch monitors across all boards in parallel
+  const monitorRequests = boards.map(async (board: any) => {
+    try {
+      const res = await fetch(`${baseUrl}/boards/${encodeURIComponent(board.id)}/monitors`, { headers });
+      if (!res.ok) {
+        console.warn(`StatusGator monitors API for board ${board.id} returned HTTP ${res.status}`);
+        return [];
+      }
+      const json = (await res.json()) as any;
+      return Array.isArray(json?.data) ? json.data : [];
+    } catch (err) {
+      console.warn(`Failed to fetch StatusGator monitors for board ${board.id}:`, err);
+      return [];
     }
   });
 
-  if (!res.ok) {
-    throw new Error(`StatusGator returned HTTP ${res.status}`);
+  const monitorArrays = await Promise.all(monitorRequests);
+  const rawMonitors = monitorArrays.flat();
+
+  // Deduplicate monitors across boards
+  const seenIds = new Set<string>();
+  const monitors: any[] = [];
+  for (const item of rawMonitors) {
+    if (item && item.id && !seenIds.has(item.id)) {
+      seenIds.add(item.id);
+      monitors.push(item);
+    }
   }
 
-  const data = (await res.json()) as any;
-  const monitors = data.data || [];
   const outages: OutageDto[] = [];
 
   for (const monitor of monitors) {
-    const serviceName = monitor.attributes?.name || 'Service';
-    const statusText = monitor.attributes?.status || 'unknown'; // up, down, warn
+    const serviceName = monitor.display_name || monitor.name || monitor.attributes?.name || 'Service';
+    const rawStatus = (
+      monitor.filtered_status ||
+      monitor.unfiltered_status ||
+      monitor.attributes?.status ||
+      'up'
+    ).toLowerCase();
 
-    if (statusText === 'down' || statusText === 'warn') {
-      const isDown = statusText === 'down';
-      const status = isDown ? 'down' : 'degraded';
-      const color = isDown ? 'EF4444' : 'F59E0B';
-      const logo = getLogoForName(serviceName);
+    // StatusGator statuses: 'up', 'down', 'warn', 'maintenance'
+    const isDown = rawStatus === 'down';
+    const isDegraded = rawStatus === 'warn' || rawStatus === 'maintenance';
+    const status: 'down' | 'degraded' | 'up' = isDown ? 'down' : isDegraded ? 'degraded' : 'up';
+    const color = isDown ? 'EF4444' : isDegraded ? 'F59E0B' : '10B981';
+    const logo = getLogoForName(serviceName);
 
-      // StatusGator returns global service statuses. We geolocate to default tech hub (Silicon Valley)
-      // and apply heavy jitter so they scatter nicely on the map
+    // Geolocation: try name text parsing, then fallback to tech hub with jitter
+    let loc = geolocateFromText(serviceName);
+    if (!loc) {
       const baseLat = 37.7749;
       const baseLng = -122.4194;
-      const loc = applyJitter(baseLat, baseLng, 1500);
-
-      outages.push({
-        id: `statusgator-${monitor.id}`,
-        title: serviceName,
-        description: `StatusGator monitor reported service as ${statusText.toUpperCase()}. Details: ${monitor.attributes?.description || 'N/A'}.`,
-        link: monitor.attributes?.home_url || `https://statusgator.com`,
-        thumbnail: getThumbnailUrl(logo, color),
-        latencyMs: isDown ? 4500 : 1200,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        uncertaintyKm: 250,
-        platform: 'statusgator',
-        status: status,
-        service: logo,
-        timestamp: Date.parse(monitor.attributes?.updated_at || new Date().toISOString())
-      });
+      loc = applyJitter(baseLat, baseLng, 1200);
+    } else {
+      loc = applyJitter(loc.latitude, loc.longitude, 50);
     }
+
+    const description =
+      monitor.last_details ||
+      monitor.last_message ||
+      monitor.description ||
+      monitor.attributes?.description ||
+      (status === 'up'
+        ? 'System operational. All health checks passing.'
+        : `StatusGator monitor reported service as ${rawStatus.toUpperCase()}.`);
+
+    const link =
+      monitor.home_url ||
+      monitor.url ||
+      monitor.attributes?.home_url ||
+      `https://statusgator.com`;
+    const thumbnail = monitor.icon_url || getThumbnailUrl(logo, color);
+    const latency = isDown ? 4500 : isDegraded ? 1200 : 75;
+    const timestamp =
+      Date.parse(
+        monitor.updated_at ||
+        monitor.checked_at ||
+        monitor.attributes?.updated_at ||
+        new Date().toISOString()
+      ) || Date.now();
+
+    outages.push({
+      id: `statusgator-${monitor.id}`,
+      title: serviceName,
+      description,
+      link,
+      thumbnail,
+      latencyMs: latency,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      uncertaintyKm: loc.uncertaintyKm ?? 200,
+      platform: 'statusgator',
+      status,
+      service: logo,
+      timestamp
+    });
   }
 
   return outages;
